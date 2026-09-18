@@ -37,6 +37,26 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .overduecard h3{font-size:14px;font-weight:800;margin:0}
 .overduecard p{font-size:13px;color:var(--danger);font-weight:600;margin:2px 0 0}
 .overduebadge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;background:var(--danger);color:#fff;font-size:13px;font-weight:800;white-space:nowrap}
+.bookart img{width:100%;height:100%;object-fit:cover;border-radius:13px;position:absolute;inset:0}
+.hero-overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.35);border-radius:28px;opacity:0;transition:opacity .2s;cursor:pointer}
+.hero-overlay:hover,.hero-overlay:focus-visible{opacity:1}
+.hero-overlay svg{width:32px;height:32px;stroke:#fff;fill:none;stroke-width:2.5}
+.hero-overlay input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.cover-upload{min-height:44px;padding:8px 13px;border:2px dashed var(--ink);border-radius:15px;background:var(--cream);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px}
+.cover-upload input{display:none}
+.cover-preview{width:100%;max-height:160px;object-fit:contain;border-radius:12px;border:2px solid var(--ink);margin:8px 0}
+.upload-spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--ink);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.upload-spinner{animation:none}}
+.admin-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border:2px solid var(--ink);border-radius:999px;background:var(--yellow);font-size:13px;font-weight:800;box-shadow:2px 2px 0 var(--ink)}
+.admin-section{margin:18px 0;padding:16px;border:2px solid var(--ink);border-radius:20px;background:#fff;box-shadow:var(--shadow)}
+.admin-section h3{font-size:16px;font-weight:900;margin:0 0 10px}
+.admin-section .pin-row{display:flex;gap:8px;align-items:center}
+.admin-section .pin-input{flex:1;height:50px;border:2px solid var(--ink);border-radius:999px;padding:0 14px;font-size:18px;font-weight:700;text-align:center;letter-spacing:8px;box-shadow:2px 2px 0 var(--ink)}
+.edit-cover{position:absolute;top:6px;right:6px;width:32px;height:32px;border:2px solid var(--ink);border-radius:50%;background:#fff;display:grid;place-items:center;cursor:pointer;z-index:2;box-shadow:1px 1px 0 var(--ink)}
+.edit-cover svg{width:14px;height:14px}
+.url-input{width:100%;height:50px;border:2px solid var(--ink);border-radius:999px;padding:0 14px;font-size:14px;font-weight:600;box-shadow:2px 2px 0 var(--ink)}
+.url-preview{width:100%;max-height:180px;object-fit:contain;border-radius:12px;border:2px solid var(--ink);margin:12px 0;display:none}
 </style>
 </head>
 <body>
@@ -82,6 +102,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <p class="error" id="borrowError" role="alert"></p>
 <button class="btn save" type="submit"><svg class="svg"><use href="#i-book"/></svg>Pinjam</button></form></dialog>
 
+<dialog id="urlDialog" aria-labelledby="urlDialogTitle"><div class="sheethead"><h2 id="urlDialogTitle">Tukar Gambar</h2><button class="close url-close" type="button" aria-label="Tutup"><svg class="svg"><use href="#i-x"/></svg></button></div><div class="form"><label class="cover-upload" id="uploadLabel"><svg class="svg"><use href="#i-plus"/></svg><span>Pilih gambar</span><input type="file" id="urlFileInput" accept="image/*"></label><img id="urlPreview" class="url-preview" alt="Pratonton"><p class="error" id="urlError" role="alert"></p></div></dialog>
+
 <script>
 (()=>{'use strict';
 const KEY='nilam_pss_guru_v1', $=id=>document.getElementById(id), MAIN=$('main'), HOME=MAIN.innerHTML;
@@ -96,7 +118,7 @@ const BOOKS=[
  {title:'Tokoh Sains Malaysia',author:'R. Iskandar',type:'Majalah',pages:36,cat:'Tokoh',color:'#BDECE7',desc:'Kisah ringkas rakyat Malaysia yang menyumbang kepada bidang sains.'}
 ];
 const rec=(title,pages,type,author,summary,date)=>({title,pages,type,author,summary,date});
-const seed=()=>({guru:{name:'Pn. Siti',role:'Guru PSS',school:'SK Seri Murni'},selected:null,prefs:{reminder:true,parent:false},borrows:{0:{status:'dipinjam',borrowedBy:'s1',borrowDate:'2026-09-04',dueDate:'2026-09-18'},3:{status:'dipinjam',borrowedBy:'s4',borrowDate:'2026-09-10',dueDate:'2026-09-24'}},students:[
+const seed=()=>({guru:{name:'Pn. Siti',role:'Guru PSS',school:'SK Seri Murni'},selected:null,prefs:{reminder:true,parent:false},covers:{},borrows:{0:{status:'dipinjam',borrowedBy:'s1',borrowDate:'2026-09-04',dueDate:'2026-09-18'},3:{status:'dipinjam',borrowedBy:'s4',borrowDate:'2026-09-10',dueDate:'2026-09-24'}},students:[
  {id:'s1',name:'Aina Zulaikha',kelas:'Tahun 4 Inovatif',books:5,pages:320,current:{title:'Legenda Tasik Biru',author:'Rohana Ismail',progress:68,pages:80},saved:[0,2],records:[
   rec('Rahsia Hutan Bakau',40,'Buku','Siti Hajar','Hutan bakau menahan hakisan dan menjadi rumah hidupan laut.','2026-09-02'),
   rec('Planet Kita',24,'E-buku','Nadia Karim','Bumi perlu dijaga bersama supaya udara kekal bersih.','2026-09-05'),
@@ -117,7 +139,7 @@ const seed=()=>({guru:{name:'Pn. Siti',role:'Guru PSS',school:'SK Seri Murni'},s
   rec('Planet Kita',24,'E-buku','Nadia Karim','Kita boleh menanam pokok untuk menjaga bumi.','2026-09-07'),
   rec('Sang Kancil dan Buaya',32,'Buku','Cerita rakyat','Jangan mudah percaya, gunakan akal.','2026-09-11')]}
 ]});
-function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||'{}'),d=seed();return s&&s.students&&s.students.length?{...d,...s,prefs:{...d.prefs,...(s.prefs||{})},guru:{...d.guru,...(s.guru||{})},borrows:{...d.borrows,...(s.borrows||{})}}:d}catch{return seed()}}
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||'{}'),d=seed();return s&&s.students&&s.students.length?{...d,...s,prefs:{...d.prefs,...(s.prefs||{})},guru:{...d.guru,...(s.guru||{})},borrows:{...d.borrows,...(s.borrows||{})},covers:{...(d.covers||{}),...(s.covers||{})}}:d}catch{return seed()}}
 let state=load(), route='Utama', filter='Semua', q='', bookFilter='Semua', lencanaFor='all', opener=null, timer;
 const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -126,6 +148,47 @@ function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('sho
 const icon=id=>`<svg class="svg"><use href="#${id}"/></svg>`;
 const initials=n=>n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
 const first=n=>n.split(' ')[0];
+const R2_URL='https://nilam-upload.khairul590.workers.dev/upload';
+async function uploadToR2(file){
+ const fd=new FormData();fd.append('file',file);
+ const r=await fetch(R2_URL,{method:'POST',body:fd});
+ if(!r.ok)throw new Error('Muat naik gagal');
+ return r.json();
+}
+/* --- Admin helpers --- */
+function isAdmin(){return localStorage.getItem('nilamAdmin')==='true'}
+function adminLogin(pin){if(pin==='123456'){localStorage.setItem('nilamAdmin','true');return true}return false}
+function adminLogout(){localStorage.removeItem('nilamAdmin')}
+function getBookCovers(){try{return JSON.parse(localStorage.getItem('nilamBookCovers')||'{}')}catch{return{}}}
+function setBookCover(i,url){const c=getBookCovers();if(url)c[i]=url;else delete c[i];localStorage.setItem('nilamBookCovers',JSON.stringify(c))}
+function openUrlDialog(title,current,onSave){
+ const dlg=$('urlDialog');if(!dlg)return;
+ $('urlDialogTitle').textContent=title;
+ const prev=$('urlPreview');if(current){prev.src=current;prev.style.display='block'}else{prev.style.display='none'}
+ const inp=$('urlFileInput');inp.value='';
+ const err=$('urlError');err.textContent='';
+ dlg._onSave=onSave;dlg.showModal()}
+/* --- URL dialog handlers --- */
+$('urlDialog').addEventListener('change',async e=>{
+ if(e.target.id!=='urlFileInput')return;
+ const f=e.target.files[0];if(!f)return;
+ const dlg=$('urlDialog');const prev=$('urlPreview');const err=$('urlError');const lbl=$('uploadLabel');
+ prev.src=URL.createObjectURL(f);prev.style.display='block';
+ lbl.classList.add('uploading');lbl.innerHTML='<span class="upload-spinner"></span><span>Memuat naik...</span>';
+ err.textContent='';
+ try{const r=await uploadToR2(f);if(dlg._onSave)dlg._onSave(r);dlg.close();toast('Gambar dikemaskini')}
+ catch(ex){err.textContent='Ralat: '+ex.message}
+ finally{lbl.classList.remove('uploading');lbl.innerHTML=`<svg class="svg"><use href="#i-plus"/></svg><span>Pilih gambar</span><input type="file" id="urlFileInput" accept="image/*">`}});
+document.querySelectorAll('.url-close').forEach(b=>b.addEventListener('click',()=>$('urlDialog').close()));
+$('urlDialog').addEventListener('close',()=>{$('urlError').textContent='';$('urlPreview').style.display='none'});
+function applyHeroImage(){
+ const url=localStorage.getItem('nilamHeroImage');
+ const ph=document.querySelector('.photo');
+ if(ph&&url){ph.style.background=`url(${url}) center 36%/cover no-repeat`}
+}
+function showCoverImg(i,url){
+ return url?`<img src="${esc(url)}" alt="" loading="lazy">`:'';
+}
 const days=s=>new Set((s.records||[]).map(r=>r.date).filter(Boolean)).size;
 const student=id=>state.students.find(s=>s.id===id);
 const classes=()=>[...new Set(state.students.map(s=>s.kelas))].sort();
@@ -152,8 +215,12 @@ function badgeHTML(s){return BADGES.map(b=>{const ok=b.val(s)>=b.goal;return `<a
 function recordsHTML(s){return s.records.map((r,i)=>({r,i})).reverse().map(({r,i})=>`<article class="readrow"><div class="thumb ${i%2?'green':''}">${icon('i-book')}</div><div><h3>${esc(r.title)}</h3><p>${fmt(r.date)} · ${r.pages} halaman · ${esc(r.type)}</p></div><button class="chev" data-record="${s.id}:${i}" aria-label="Lihat rekod ${esc(r.title)}">${icon('i-arrow')}</button></article>`).join('')||'<div class="empty">Belum ada rekod bacaan.</div>'}
 function stuListHTML(){const rows=stuItems();return rows.map((s,i)=>`<button class="readrow sturow" data-stu="${s.id}"><span class="thumb ${['','green','blue'][i%3]}">${initials(s.name)}</span><span><span class="nm">${esc(s.name)}</span><span class="meta">${esc(s.kelas)} · ${s.books} bahan · ${s.pages} halaman</span><span class="meta">Sedang baca: ${esc(s.current?s.current.title:'—')}</span></span><span class="chev">${icon('i-arrow')}</span></button>`).join('')||'<div class="empty">Tiada murid sepadan.</div>'}
 function renderHome(){route='Utama';MAIN.innerHTML=HOME;activate('Utama');MAIN.scrollTop=0;
+ const heroGuru=$('heroGuru');
+ if(heroGuru){heroGuru.outerHTML=`<span id="heroGuru">${esc(state.guru.name)} · ${esc(state.guru.role)}</span>${isAdmin()?'<span class="admin-badge" style="font-size:11px;padding:3px 8px">🛡️ Admin</span>':''}`}
+ applyHeroImage();
+ const ph=document.querySelector('.photo');
+ if(ph&&isAdmin()){ph.style.cursor='pointer';ph.style.position='relative';const ov=document.createElement('div');ov.className='hero-overlay';ov.setAttribute('aria-label','Tukar gambar hero');ov.innerHTML=`<svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>`;ov.setAttribute('tabindex','0');ov.addEventListener('click',()=>{openUrlDialog('Tukar Gambar Hero',localStorage.getItem('nilamHeroImage')||'',res=>{localStorage.setItem('nilamHeroImage',res.url);applyHeroImage()})});ph.appendChild(ov)}
  const t=totals(),act=t.active;
- $('heroGuru').textContent=`${state.guru.name} · ${state.guru.role}`;
  $('kpiActive').textContent=act;
  $('kpiLabel').textContent=`${classes().length} kelas · ${t.records} rekod`;
  $('kpiGrid').innerHTML=`<article class="stat yellow">${icon('i-user')}<b>${t.students}</b><span>jumlah murid</span></article><article class="stat">${icon('i-book')}<b>${t.books}</b><span>buku dibaca</span></article><article class="stat green">${icon('i-pages')}<b>${t.pages}</b><span>halaman dibaca</span></article><article class="stat">${icon('i-flame')}<b>${act}</b><span>murid aktif</span></article>`;
@@ -178,7 +245,10 @@ function bookItems(query=''){const ql=query.toLowerCase();const t=target();retur
  const dl=daysLeft(b.dueDate);
  const borrowInfo=b.status==='dipinjam'?`<div class="borrowinfo">Dipinjam oleh: ${esc(sname)} · ${dl>=0?dl+' hari lagi':Math.abs(dl)+' hari lewat'}</div>`:'';
  const actionBtn=b.status==='dipinjam'?`<button class="mini" data-pulang="${b.i}">Pulang</button>`:`<button class="mini" data-pinjam="${b.i}">Pinjam</button>`;
- return `<article class="bookcard"><div class="bookart" style="--art:${b.color}">${badge}</div><div><h2>${b.title}</h2><p>${b.author} · ${b.pages} halaman</p>${borrowInfo}<div class="cardactions"><button class="mini main" data-book="${b.i}">Lihat</button>${actionBtn}<button class="mini" data-save="${b.i}">${t.saved.includes(b.i)?'Disimpan':'Simpan'}</button></div></div></article>`}).join('')||'<div class="empty">Tiada buku sepadan.</div>'}
+ const covers=getBookCovers();
+ const coverImg=covers[b.i]?`<img src="${esc(covers[b.i])}" alt="" loading="lazy">`:'';
+ const editBtn=isAdmin()?`<button class="edit-cover" data-editcover="${b.i}" aria-label="Tukar kulit buku">${icon('i-pen')}</button>`:'';
+ return `<article class="bookcard"><div class="bookart" style="--art:${b.color}">${badge}${coverImg}${editBtn}</div><div><h2>${b.title}</h2><p>${b.author} · ${b.pages} halaman</p>${borrowInfo}<div class="cardactions"><button class="mini main" data-book="${b.i}">Lihat</button>${actionBtn}<button class="mini" data-save="${b.i}">${t.saved.includes(b.i)?'Disimpan':'Simpan'}</button></div></div></article>`}).join('')||'<div class="empty">Tiada buku sepadan.</div>'}
 function renderBooks(query=''){route='Buku';activate('Buku');
  MAIN.innerHTML=header('Jelajah buku','Katalog pusat sumber untuk rujukan guru.')+`<label class="searchbox">${icon('i-stack')}<input id="bookSearch" value="${esc(query)}" placeholder="Cari tajuk atau penulis" aria-label="Cari buku"></label><div class="filters" aria-label="Kategori buku">${['Semua','Cerita','Sains','Alam','Tokoh','Dipinjam'].map(x=>`<button class="filter ${bookFilter===x?'active':''}" data-filter="${x}">${x}</button>`).join('')}</div><div class="booklist" id="bookList">${bookItems(query)}</div><p class="route-note">Murid dipilih: ${esc(target().name)}. Semua tajuk ialah data demonstrasi.</p>`;
  MAIN.scrollTop=0}
@@ -198,7 +268,9 @@ function renderProfil(){route='Profil';activate('Profil');const t=totals();
  <section class="settings"><label class="setting">Peringatan membaca<input type="checkbox" data-pref="reminder" ${state.prefs.reminder?'checked':''}></label><label class="setting">Ringkasan ibu bapa<input type="checkbox" data-pref="parent" ${state.prefs.parent?'checked':''}></label>
  <button class="setting" data-action="export">${icon('i-pages')}<span>Eksport ringkasan PSS</span>${icon('i-arrow')}</button>
  <button class="setting" data-action="classes">${icon('i-stack')}<span>Senarai kelas</span>${icon('i-arrow')}</button></section>
- <button class="btn dangerbtn" data-action="reset">Tetapkan semula demo</button><p class="route-note">Akaun guru dan data murid ini adalah rekaan untuk demonstrasi.</p>`;
+ <button class="btn dangerbtn" data-action="reset">Tetapkan semula demo</button>
+ <section class="admin-section">${isAdmin()?`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="admin-badge">🛡️ Admin PSS</span><button class="btn secondary" data-action="admin-logout">Log Keluar</button></div>`:`<h3>🔐 Log Masuk Admin</h3><div class="pin-row"><input class="pin-input" id="adminPin" type="password" maxlength="6" inputmode="numeric" placeholder="······" aria-label="PIN Admin"><button class="btn primary" data-action="admin-login">Log Masuk</button></div>`}</section>
+ <p class="route-note">Akaun guru dan data murid ini adalah rekaan untuk demonstrasi.</p>`;
  MAIN.scrollTop=0}
 function renderMuridList(){filter='Semua';q='';renderHome()}
 function go(name){if(name==='Utama')renderHome();else if(name==='Buku')renderBooks($('bookSearch')?.value||'');else if(name==='Lencana')renderLencana();else if(name==='Profil')renderProfil();else if(name==='Murid')renderMurid(state.selected);else if(name==='Rekod')openRecord(null)}
@@ -244,6 +316,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(a==='print'){window.print();$('detailDialog').close();return}
  if(a==='reset'){detail('Tetapkan semula demo','<p>Semua perubahan demonstrasi pada peranti ini akan dibuang.</p>','Tetapkan semula','confirm-reset');return}
  if(a==='confirm-reset'){localStorage.removeItem(KEY);state=seed();$('detailDialog').close();renderHome();toast('Demo ditetapkan semula');return}
+ if(a==='admin-login'){const pin=$('adminPin')?.value;if(adminLogin(pin)){renderProfil();renderHome()}else toast('PIN salah');return}
+ if(a==='admin-logout'){adminLogout();renderProfil();renderHome();toast('Log keluar berjaya');return}
+ if(b.dataset.editcover!==undefined){const ci=Number(b.dataset.editcover);const covers=getBookCovers();openUrlDialog('Tukar Kulit Buku',covers[ci]||'',res=>{setBookCover(ci,res.url);renderBooks($('bookSearch')?.value||'');toast('Kulit buku dikemaskini')});return}
  if(a&&a.startsWith('start:')){const i=Number(a.split(':')[1]),x=BOOKS[i],s=target();s.current={title:x.title,author:x.author,progress:0,pages:x.pages};save();$('detailDialog').close();renderHome();toast(`${first(s.name)} mula membaca ${x.title}`);return}
  if(b.classList.contains('iconbtn'))detail('Pemberitahuan','<p>Tiada pemberitahuan baharu.</p>');
  else if(b.classList.contains('secondary'))go('Buku');
