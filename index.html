@@ -57,6 +57,19 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .edit-cover svg{width:14px;height:14px}
 .url-input{width:100%;height:50px;border:2px solid var(--ink);border-radius:999px;padding:0 14px;font-size:14px;font-weight:600;box-shadow:2px 2px 0 var(--ink)}
 .url-preview{width:100%;max-height:180px;object-fit:contain;border-radius:12px;border:2px solid var(--ink);margin:12px 0;display:none}
+.school-settings{margin:18px 0;padding:16px;border:2px solid var(--ink);border-radius:20px;background:#fff;box-shadow:var(--shadow)}
+.school-settings h3{font-size:16px;font-weight:900;margin:0 0 12px}
+.school-settings .field{margin-bottom:12px}
+.school-settings .field label{display:block;font-size:13px;font-weight:800;color:var(--muted);margin-bottom:4px}
+.school-settings .field input,.school-settings .field textarea{width:100%;height:44px;border:2px solid var(--ink);border-radius:12px;padding:0 12px;font-size:14px;box-shadow:2px 2px 0 var(--ink)}
+.school-settings .field textarea{height:80px;padding:10px 12px;resize:vertical}
+.brand-logo{width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--ink)}
+.add-book-btn{min-height:44px;padding:10px 18px;border:2px solid var(--ink);border-radius:999px;background:var(--green);color:#fff;font-weight:800;font-size:14px;box-shadow:2px 2px 0 var(--ink);display:inline-flex;align-items:center;gap:6px}
+.book-edit-btn{position:absolute;top:6px;left:6px;width:32px;height:32px;border:2px solid var(--ink);border-radius:50%;background:#fff;display:grid;place-items:center;cursor:pointer;z-index:2;box-shadow:1px 1px 0 var(--ink)}
+.book-edit-btn svg{width:14px;height:14px}
+.dangerbtn-sm{min-height:44px;padding:8px 16px;border:2px solid var(--danger);border-radius:999px;background:var(--danger);color:#fff;font-weight:800;font-size:14px}
+.logo-upload-area{display:flex;align-items:center;gap:12px;margin:8px 0}
+.logo-upload-area img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--ink)}
 </style>
 </head>
 <body>
@@ -103,6 +116,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <button class="btn save" type="submit"><svg class="svg"><use href="#i-book"/></svg>Pinjam</button></form></dialog>
 
 <dialog id="urlDialog" aria-labelledby="urlDialogTitle"><div class="sheethead"><h2 id="urlDialogTitle">Tukar Gambar</h2><button class="close url-close" type="button" aria-label="Tutup"><svg class="svg"><use href="#i-x"/></svg></button></div><div class="form"><label class="cover-upload" id="uploadLabel"><svg class="svg"><use href="#i-plus"/></svg><span>Pilih gambar</span><input type="file" id="urlFileInput" accept="image/*"></label><img id="urlPreview" class="url-preview" alt="Pratonton"><p class="error" id="urlError" role="alert"></p></div></dialog>
+
+<dialog id="bookFormDialog" aria-labelledby="bookFormTitle"><div class="sheethead"><h2 id="bookFormTitle">Tambah Buku</h2><button class="close bookform-close" type="button" aria-label="Tutup"><svg class="svg"><use href="#i-x"/></svg></button></div><form class="form" id="bookForm" novalidate>
+<div class="field"><label for="bfTitle">Tajuk</label><input id="bfTitle" name="title" required maxlength="100" placeholder="Tajuk buku"></div>
+<div class="field"><label for="bfAuthor">Pengarang</label><input id="bfAuthor" name="author" required maxlength="80" placeholder="Nama pengarang"></div>
+<div class="twocol"><div class="field"><label for="bfType">Jenis</label><select id="bfType" name="type"><option>Buku</option><option>E-buku</option><option>Artikel</option><option>Majalah</option></select></div><div class="field"><label for="bfPages">Halaman</label><input id="bfPages" name="pages" type="number" min="1" max="2000" inputmode="numeric" required placeholder="32"></div></div>
+<div class="field"><label for="bfCat">Kategori</label><select id="bfCat" name="cat"><option>Cerita</option><option>Sains</option><option>Alam</option><option>Tokoh</option></select></div>
+<div class="field"><label for="bfDesc">Penerangan</label><textarea id="bfDesc" name="desc" maxlength="300" placeholder="Penerangan ringkas buku"></textarea></div>
+<div class="field"><label>Gambar kulit</label><label class="cover-upload" id="bfCoverLabel"><svg class="svg"><use href="#i-plus"/></svg><span>Pilih gambar</span><input type="file" id="bfCoverInput" accept="image/*"></label><img id="bfCoverPreview" class="cover-preview" alt="Pratonton" style="display:none"></div>
+<input type="hidden" id="bfEditIdx" value="-1">
+<p class="error" id="bookFormError" role="alert"></p>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn save" type="submit"><svg class="svg"><use href="#i-book"/></svg>Simpan</button><button class="dangerbtn-sm" id="bfDeleteBtn" type="button" style="display:none"><svg class="svg"><use href="#i-x"/></svg>Padam</button></div>
+</form></dialog>
 
 <script>
 (()=>{'use strict';
@@ -155,6 +180,14 @@ async function uploadToR2(file){
  if(!r.ok)throw new Error('Muat naik gagal');
  return r.json();
 }
+/* --- Custom books (localStorage) --- */
+function loadCustomBooks(){try{return JSON.parse(localStorage.getItem('nilamCustomBooks')||'[]')}catch{return[]}}
+function saveCustomBooks(list){localStorage.setItem('nilamCustomBooks',JSON.stringify(list))}
+function mergeCustomBooks(){const custom=loadCustomBooks();custom.forEach(b=>{if(!BOOKS.find(x=>x.title===b.title&&x.author===b.author))BOOKS.push(b)})}
+mergeCustomBooks();
+/* --- School settings --- */
+function getSchoolSettings(){try{return JSON.parse(localStorage.getItem('nilamSchoolSettings')||'{}')}catch{return{}}}
+function saveSchoolSettings(s){localStorage.setItem('nilamSchoolSettings',JSON.stringify(s))}
 /* --- Admin helpers --- */
 function isAdmin(){return localStorage.getItem('nilamAdmin')==='true'}
 function adminLogin(pin){if(pin==='123456'){localStorage.setItem('nilamAdmin','true');return true}return false}
@@ -215,8 +248,14 @@ function badgeHTML(s){return BADGES.map(b=>{const ok=b.val(s)>=b.goal;return `<a
 function recordsHTML(s){return s.records.map((r,i)=>({r,i})).reverse().map(({r,i})=>`<article class="readrow"><div class="thumb ${i%2?'green':''}">${icon('i-book')}</div><div><h3>${esc(r.title)}</h3><p>${fmt(r.date)} · ${r.pages} halaman · ${esc(r.type)}</p></div><button class="chev" data-record="${s.id}:${i}" aria-label="Lihat rekod ${esc(r.title)}">${icon('i-arrow')}</button></article>`).join('')||'<div class="empty">Belum ada rekod bacaan.</div>'}
 function stuListHTML(){const rows=stuItems();return rows.map((s,i)=>`<button class="readrow sturow" data-stu="${s.id}"><span class="thumb ${['','green','blue'][i%3]}">${initials(s.name)}</span><span><span class="nm">${esc(s.name)}</span><span class="meta">${esc(s.kelas)} · ${s.books} bahan · ${s.pages} halaman</span><span class="meta">Sedang baca: ${esc(s.current?s.current.title:'—')}</span></span><span class="chev">${icon('i-arrow')}</span></button>`).join('')||'<div class="empty">Tiada murid sepadan.</div>'}
 function renderHome(){route='Utama';MAIN.innerHTML=HOME;activate('Utama');MAIN.scrollTop=0;
+ const ss=getSchoolSettings();
+ const brandEl=document.querySelector('.brand');
+ if(brandEl){
+  const logoHtml=ss.logoUrl?`<img class="brand-logo" src="${esc(ss.logoUrl)}" alt="">`:'';
+  brandEl.innerHTML=`<span class="brandmark"><svg class="svg"><use href="#i-book"/></svg></span>${logoHtml}${esc(ss.namaSekolah||'NILAM PSS')}`;
+ }
  const heroGuru=$('heroGuru');
- if(heroGuru){heroGuru.outerHTML=`<span id="heroGuru">${esc(state.guru.name)} · ${esc(state.guru.role)}</span>${isAdmin()?'<span class="admin-badge" style="font-size:11px;padding:3px 8px">🛡️ Admin</span>':''}`}
+ if(heroGuru){heroGuru.outerHTML=`<span id="heroGuru">${esc(ss.namaGuru||state.guru.name)} · ${esc(state.guru.role)}</span>${isAdmin()?'<span class="admin-badge" style="font-size:11px;padding:3px 8px">🛡️ Admin</span>':''}`}
  applyHeroImage();
  const ph=document.querySelector('.photo');
  if(ph&&isAdmin()){ph.style.cursor='pointer';ph.style.position='relative';const ov=document.createElement('div');ov.className='hero-overlay';ov.setAttribute('aria-label','Tukar gambar hero');ov.innerHTML=`<svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>`;ov.setAttribute('tabindex','0');ov.addEventListener('click',()=>{openUrlDialog('Tukar Gambar Hero',localStorage.getItem('nilamHeroImage')||'',res=>{localStorage.setItem('nilamHeroImage',res.url);applyHeroImage()})});ph.appendChild(ov)}
@@ -248,9 +287,10 @@ function bookItems(query=''){const ql=query.toLowerCase();const t=target();retur
  const covers=getBookCovers();
  const coverImg=covers[b.i]?`<img src="${esc(covers[b.i])}" alt="" loading="lazy">`:'';
  const editBtn=isAdmin()?`<button class="edit-cover" data-editcover="${b.i}" aria-label="Tukar kulit buku">${icon('i-pen')}</button>`:'';
- return `<article class="bookcard"><div class="bookart" style="--art:${b.color}">${badge}${coverImg}${editBtn}</div><div><h2>${b.title}</h2><p>${b.author} · ${b.pages} halaman</p>${borrowInfo}<div class="cardactions"><button class="mini main" data-book="${b.i}">Lihat</button>${actionBtn}<button class="mini" data-save="${b.i}">${t.saved.includes(b.i)?'Disimpan':'Simpan'}</button></div></div></article>`}).join('')||'<div class="empty">Tiada buku sepadan.</div>'}
+ const editBookBtn=isAdmin()?`<button class="book-edit-btn" data-editbook="${b.i}" aria-label="Edit buku">${icon('i-pen')}</button>`:'';
+ return `<article class="bookcard"><div class="bookart" style="--art:${b.color}">${badge}${coverImg}${editBtn}${editBookBtn}</div><div><h2>${b.title}</h2><p>${b.author} · ${b.pages} halaman</p>${borrowInfo}<div class="cardactions"><button class="mini main" data-book="${b.i}">Lihat</button>${actionBtn}<button class="mini" data-save="${b.i}">${t.saved.includes(b.i)?'Disimpan':'Simpan'}</button></div></div></article>`}).join('')||'<div class="empty">Tiada buku sepadan.</div>'}
 function renderBooks(query=''){route='Buku';activate('Buku');
- MAIN.innerHTML=header('Jelajah buku','Katalog pusat sumber untuk rujukan guru.')+`<label class="searchbox">${icon('i-stack')}<input id="bookSearch" value="${esc(query)}" placeholder="Cari tajuk atau penulis" aria-label="Cari buku"></label><div class="filters" aria-label="Kategori buku">${['Semua','Cerita','Sains','Alam','Tokoh','Dipinjam'].map(x=>`<button class="filter ${bookFilter===x?'active':''}" data-filter="${x}">${x}</button>`).join('')}</div><div class="booklist" id="bookList">${bookItems(query)}</div><p class="route-note">Murid dipilih: ${esc(target().name)}. Semua tajuk ialah data demonstrasi.</p>`;
+ MAIN.innerHTML=header('Jelajah buku','Katalog pusat sumber untuk rujukan guru.')+(isAdmin()?`<div style="margin:12px 0"><button class="add-book-btn" data-action="add-book">${icon('i-plus')}Tambah Buku</button></div>`:'')+`<label class="searchbox">${icon('i-stack')}<input id="bookSearch" value="${esc(query)}" placeholder="Cari tajuk atau penulis" aria-label="Cari buku"></label><div class="filters" aria-label="Kategori buku">${['Semua','Cerita','Sains','Alam','Tokoh','Dipinjam'].map(x=>`<button class="filter ${bookFilter===x?'active':''}" data-filter="${x}">${x}</button>`).join('')}</div><div class="booklist" id="bookList">${bookItems(query)}</div><p class="route-note">Murid dipilih: ${esc(target().name)}. Semua tajuk ialah data demonstrasi.</p>`;
  MAIN.scrollTop=0}
 function renderLencana(){route='Lencana';activate('Lencana');
  const sub=lencanaFor==='all'?aggregate():(student(lencanaFor)||aggregate());
@@ -261,19 +301,94 @@ function renderLencana(){route='Lencana';activate('Lencana');
  <div class="badgegrid">${badgeHTML(sub)}</div>
  <p class="route-note">${earned(sub)} daripada ${BADGES.length} lencana dibuka · ${next?`Sasaran seterusnya: ${next.title}`:'Pembaca cemerlang!'}</p>`;
  MAIN.scrollTop=0}
-function renderProfil(){route='Profil';activate('Profil');const t=totals();
+function renderLaporan(){
+ route='Laporan';activate('Profil');
+ const t=totals();
+ const borrowed=Object.values(state.borrows).filter(b=>b.status==='dipinjam');
+ const activeStudents=state.students.filter(s=>s.records.length>0);
+ /* most popular book */
+ const bookCounts={};state.students.forEach(s=>s.records.forEach(r=>{bookCounts[r.title]=(bookCounts[r.title]||0)+1}));
+ const popular=Object.entries(bookCounts).sort((a,b)=>b[1]-a[1])[0];
+ /* most active student */
+ const active=state.students.slice().sort((a,b)=>b.records.length-a.records.length)[0];
+ /* current month stats */
+ const now=new Date();const ym=now.toISOString().slice(0,7);
+ const monthRecords=state.students.flatMap(s=>s.records.filter(r=>r.date&&r.date.startsWith(ym)));
+ const monthPages=monthRecords.reduce((a,r)=>a+r.pages,0);
+ MAIN.innerHTML=header('Laporan Bulanan','Ringkasan aktiviti PSS bulan semasa.')
+ +`<section class="section"><div class="sectionhead"><h2>Statistik Bulan Ini</h2><span>${MON[now.getMonth()]} ${now.getFullYear()}</span></div>
+ <div class="stats"><article class="stat yellow">${icon('i-book')}<b>${monthRecords.length}</b><span>rekod bulan ini</span></article><article class="stat">${icon('i-pages')}<b>${monthPages}</b><span>halaman bulan ini</span></article><article class="stat green">${icon('i-user')}<b>${activeStudents.length}</b><span>murid aktif</span></article></div></section>`
+ +`<section class="section"><div class="sectionhead"><h2>Ringkasan Keseluruhan</h2></div>
+ <div class="reads">
+ <article class="readrow"><div class="thumb">${icon('i-stack')}</div><div><h3>${BOOKS.length} buku</h3><p>dalam katalog PSS</p></div></article>
+ <article class="readrow"><div class="thumb green">${icon('i-book')}</div><div><h3>${borrowed.length} dipinjam</h3><p>buku sedang dipinjam sekarang</p></div></article>
+ <article class="readrow"><div class="thumb blue">${icon('i-flame')}</div><div><h3>${popular?esc(popular[0]):'Tiada'}</h3><p>buku paling popular (${popular?popular[1]:0} rekod)</p></div></article>
+ <article class="readrow"><div class="thumb green">${icon('i-user')}</div><div><h3>${active?esc(active.name):'Tiada'}</h3><p>murid paling aktif (${active?active.records.length:0} rekod)</p></div></article>
+ </div></section>`
+ +(isAdmin()?`<section class="section"><div class="sectionhead"><h2>Eksport Data</h2><span>Admin sahaja</span></div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+ <button class="btn primary" data-action="export-csv"><svg class="svg"><use href="#i-pages"/></svg>Eksport CSV Rekod</button>
+ <button class="btn secondary" data-action="export-books-csv"><svg class="svg"><use href="#i-stack"/></svg>Eksport Senarai Buku</button>
+ </div></section>`:'')
+ +`<p class="route-note">Data dikira berdasarkan rekod dalam sistem.</p>`;
+ MAIN.scrollTop=0}
+/* --- CSV Export helpers --- */
+function downloadCSV(filename,rows){
+ if(!rows.length)return;
+ const escCsv=s=>'"'+String(s).replace(/"/g,'""')+'"';
+ const csv=rows.map(r=>r.map(escCsv).join(',')).join('\n');
+ const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();URL.revokeObjectURL(a.href)
+}
+function exportRecordsCSV(){
+ const rows=[['Murid','Kelas','Buku','Tarikh','Jenis','Ulasan']];
+ state.students.forEach(s=>s.records.forEach(r=>rows.push([s.name,s.kelas,r.title,r.date,r.type,r.summary])));
+ downloadCSV('rekod_nilam_'+today()+'.csv',rows);toast('CSV rekod dimuat turun')
+}
+function exportBooksCSV(){
+ const rows=[['Tajuk','Pengarang','Jenis','Kategori','Status','Dipinjam Oleh']];
+ BOOKS.forEach((b,i)=>{
+  const bs=bookStatus(i);
+  const borrower=bs.borrowedBy?(student(bs.borrowedBy)||{name:'?'}).name:'';
+  rows.push([b.title,b.author,b.type,b.cat,bs.status==='dipinjam'?'Dipinjam':'Ada',borrower]);
+ });
+ downloadCSV('senarai_buku_'+today()+'.csv',rows);toast('CSV buku dimuat turun')
+}
+/* --- Backup/Restore --- */
+function backupData(){
+ const data={};
+ ['nilam_pss_guru_v1','nilamCustomBooks','nilamBookCovers','nilamHeroImage','nilamSchoolSettings','nilamAdmin'].forEach(k=>{const v=localStorage.getItem(k);if(v)data[k]=v});
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup_nilam_'+today()+'.json';a.click();URL.revokeObjectURL(a.href);
+ toast('Backup dimuat turun')
+}
+function restoreData(file){
+ const reader=new FileReader();
+ reader.onload=e=>{
+  try{
+   const data=JSON.parse(e.target.result);
+   Object.entries(data).forEach(([k,v])=>localStorage.setItem(k,v));
+   toast('Data dipulihkan. Memuat semula...');
+   setTimeout(()=>location.reload(),800);
+  }catch(ex){toast('Ralat: fail tidak sah')}
+ };
+ reader.readAsText(file)
+}
+function renderProfil(){route='Profil';activate('Profil');const t=totals();const ss=getSchoolSettings();
  MAIN.innerHTML=header('Profil Guru PSS','Tetapan, eksport ringkasan dan tetapan semula demo.')
- +`<section class="profilehero"><div class="avatar">${icon('i-user')}</div><div><h2>${esc(state.guru.name)}</h2><p>${esc(state.guru.role)} · ${esc(state.guru.school)}</p></div></section>
- <div class="profileStats"><div class="profileStat"><b>${t.students}</b><span>Murid</span></div><div class="profileStat"><b>${t.records}</b><span>Rekod</span></div><div class="profileStat"><b>${t.books}</b><span>Bahan</span></div></div>
- <section class="settings"><label class="setting">Peringatan membaca<input type="checkbox" data-pref="reminder" ${state.prefs.reminder?'checked':''}></label><label class="setting">Ringkasan ibu bapa<input type="checkbox" data-pref="parent" ${state.prefs.parent?'checked':''}></label>
+ +`<section class="profilehero"><div class="avatar">${icon('i-user')}</div><div><h2>${esc(ss.namaGuru||state.guru.name)}</h2><p>${esc(state.guru.role)} · ${esc(ss.namaSekolah||state.guru.school)}</p></div></section>`
+ +`<div class="profileStats"><div class="profileStat"><b>${t.students}</b><span>Murid</span></div><div class="profileStat"><b>${t.records}</b><span>Rekod</span></div><div class="profileStat"><b>${t.books}</b><span>Bahan</span></div></div>`
+ +(isAdmin()?`<section class="school-settings"><h3>🏫 Tetapan Sekolah</h3><div class="field"><label for="ssNama">Nama Sekolah</label><input id="ssNama" value="${esc(ss.namaSekolah||'')}" placeholder="Sekolah Kebangsaan ..."></div><div class="field"><label for="ssGuru">Nama Guru PSS</label><input id="ssGuru" value="${esc(ss.namaGuru||'')}" placeholder="Guru PSS"></div><div class="field"><label>Logo Sekolah</label><div class="logo-upload-area">${ss.logoUrl?`<img src="${esc(ss.logoUrl)}" alt="Logo">`:''}<label class="cover-upload" id="ssLogoLabel"><svg class="svg"><use href="#i-plus"/></svg><span>Pilih logo</span><input type="file" id="ssLogoInput" accept="image/*"></label></div></div><div class="field"><label for="ssAlamat">Alamat Sekolah</label><textarea id="ssAlamat" placeholder="Alamat sekolah (pilihan)">${esc(ss.alamat||'')}</textarea></div><button class="btn save" data-action="save-school-settings"><svg class="svg"><use href="#i-pen"/></svg>Simpan Tetapan</button></section>`:'')
+ +`<section class="settings"><label class="setting">Peringatan membaca<input type="checkbox" data-pref="reminder" ${state.prefs.reminder?'checked':''}></label><label class="setting">Ringkasan ibu bapa<input type="checkbox" data-pref="parent" ${state.prefs.parent?'checked':''}></label>
  <button class="setting" data-action="export">${icon('i-pages')}<span>Eksport ringkasan PSS</span>${icon('i-arrow')}</button>
- <button class="setting" data-action="classes">${icon('i-stack')}<span>Senarai kelas</span>${icon('i-arrow')}</button></section>
+ <button class="setting" data-action="classes">${icon('i-stack')}<span>Senarai kelas</span>${icon('i-arrow')}</button>
+ <button class="setting" data-action="laporan">${icon('i-flame')}<span>Laporan Bulanan</span>${icon('i-arrow')}</button></section>
  <button class="btn dangerbtn" data-action="reset">Tetapkan semula demo</button>
- <section class="admin-section">${isAdmin()?`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="admin-badge">🛡️ Admin PSS</span><button class="btn secondary" data-action="admin-logout">Log Keluar</button></div>`:`<h3>🔐 Log Masuk Admin</h3><div class="pin-row"><input class="pin-input" id="adminPin" type="password" maxlength="6" inputmode="numeric" placeholder="······" aria-label="PIN Admin"><button class="btn primary" data-action="admin-login">Log Masuk</button></div>`}</section>
+ <section class="admin-section">${isAdmin()?`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="admin-badge">🛡️ Admin PSS</span><button class="btn secondary" data-action="admin-logout">Log Keluar</button></div><div style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-action="backup-data">${icon('i-pages')}Backup Data</button><label class="btn secondary" style="cursor:pointer">${icon('i-stack')}<input type="file" accept=".json" id="restoreInput" style="display:none">Restore Data</label></div><p style="font-size:13px;color:var(--danger);font-weight:600;margin:8px 0">⚠️ Restore akan gantikan semua data sedia ada.</p>`:`<h3>🔐 Log Masuk Admin</h3><div class="pin-row"><input class="pin-input" id="adminPin" type="password" maxlength="6" inputmode="numeric" placeholder="······" aria-label="PIN Admin"><button class="btn primary" data-action="admin-login">Log Masuk</button></div>`}</section>
  <p class="route-note">Akaun guru dan data murid ini adalah rekaan untuk demonstrasi.</p>`;
  MAIN.scrollTop=0}
 function renderMuridList(){filter='Semua';q='';renderHome()}
-function go(name){if(name==='Utama')renderHome();else if(name==='Buku')renderBooks($('bookSearch')?.value||'');else if(name==='Lencana')renderLencana();else if(name==='Profil')renderProfil();else if(name==='Murid')renderMurid(state.selected);else if(name==='Rekod')openRecord(null)}
+function go(name){if(name==='Utama')renderHome();else if(name==='Buku')renderBooks($('bookSearch')?.value||'');else if(name==='Lencana')renderLencana();else if(name==='Profil')renderProfil();else if(name==='Murid')renderMurid(state.selected);else if(name==='Rekod')openRecord(null);else if(name==='Laporan')renderLaporan()}
 function openRecord(btn,sid){opener=btn||document.activeElement;$('formError').textContent='';const id=sid||state.selected||state.students[0].id;
  fillPick('stu',id);$('date').value=today();$('recordTitle').textContent=`Rekod · ${first(student(id).name)}`;$('recordDialog').showModal();setTimeout(()=>$('title').focus(),0)}
 function detail(title,body,label='',action=''){opener=document.activeElement;$('detailTitle').textContent=title;$('detailBody').innerHTML=body;const p=$('detailPrimary');p.hidden=!label;p.textContent=label;p.dataset.action=action;$('detailDialog').showModal()}
@@ -311,13 +426,31 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(a==='notifications'){detail('Pemberitahuan',`<p>${totals().records} rekod bacaan direkodkan daripada ${totals().students} murid. Tiada tugasan tertunggak.</p>`);return}
  if(a==='progress'){const s=target();if(!s.current)return;s.current.progress=Math.min(100,s.current.progress+5);save();if(route==='Murid')renderMurid(s.id);else renderHome();toast(`Kemajuan ${first(s.name)} kini ${s.current.progress}%`);return}
  if(a==='export'){const rows=classes().map(c=>{const g=state.students.filter(s=>s.kelas===c);return `<p><strong>${esc(c)}:</strong> ${g.reduce((n,s)=>n+s.books,0)} bahan · ${g.reduce((n,s)=>n+s.pages,0)} halaman · ${g.length} murid</p>`}).join('');detail('Ringkasan PSS',rows+`<p>Jumlah: ${totals().books} bahan · ${totals().pages} halaman · ${totals().records} rekod.</p>`,'Cetak','print');return}
+ if(a==='laporan'){go('Laporan');return}
+ if(a==='export-csv'){exportRecordsCSV();return}
+ if(a==='export-books-csv'){exportBooksCSV();return}
+ if(a==='backup-data'){backupData();return}
  if(a==='classes'){detail('Senarai kelas',classes().map(c=>`<p><strong>${esc(c)}</strong> — ${state.students.filter(s=>s.kelas===c).length} murid</p>`).join(''));return}
  if(a==='certificate'){const sub=lencanaFor==='all'?aggregate():(student(lencanaFor)||aggregate());detail(`Sijil ${sub.name}`,`<p>${esc(sub.name)} telah merekod ${sub.books} bahan bacaan dan ${sub.pages} halaman.</p><p>Sijil ini hanya untuk demonstrasi.</p>`,'Cetak','print');return}
  if(a==='print'){window.print();$('detailDialog').close();return}
  if(a==='reset'){detail('Tetapkan semula demo','<p>Semua perubahan demonstrasi pada peranti ini akan dibuang.</p>','Tetapkan semula','confirm-reset');return}
  if(a==='confirm-reset'){localStorage.removeItem(KEY);state=seed();$('detailDialog').close();renderHome();toast('Demo ditetapkan semula');return}
+ if(a==='confirm-delete-book'){
+  const idx=Number($('bfEditIdx').value);
+  if(idx>=0&&idx<BOOKS.length){
+   BOOKS.splice(idx,1);
+   const custom=loadCustomBooks();custom.splice(idx<custom.length?idx:custom.length,1);saveCustomBooks(custom);
+   /* clean up borrows/covers for removed index */
+   const newBorrows={};Object.entries(state.borrows).forEach(([k,v])=>{const ki=Number(k);if(ki<idx)newBorrows[ki]=v;else if(ki>idx)newBorrows[ki-1]=v});state.borrows=newBorrows;save();
+  }
+  $('detailDialog').close();$('bookFormDialog').close();renderBooks();toast('Buku dipadam');return}
  if(a==='admin-login'){const pin=$('adminPin')?.value;if(adminLogin(pin)){renderProfil();renderHome()}else toast('PIN salah');return}
  if(a==='admin-logout'){adminLogout();renderProfil();renderHome();toast('Log keluar berjaya');return}
+ if(a==='add-book'){openBookForm(-1);return}
+ if(a==='save-school-settings'){
+  const ss={namaSekolah:String($('ssNama')?.value||'').trim(),namaGuru:String($('ssGuru')?.value||'').trim(),logoUrl:getSchoolSettings().logoUrl||'',alamat:String($('ssAlamat')?.value||'').trim()};
+  saveSchoolSettings(ss);renderProfil();renderHome();toast('Tetapan sekolah disimpan');return}
+ if(b.dataset.editbook!==undefined){openBookForm(Number(b.dataset.editbook));return}
  if(b.dataset.editcover!==undefined){const ci=Number(b.dataset.editcover);const covers=getBookCovers();openUrlDialog('Tukar Kulit Buku',covers[ci]||'',res=>{setBookCover(ci,res.url);renderBooks($('bookSearch')?.value||'');toast('Kulit buku dikemaskini')});return}
  if(a&&a.startsWith('start:')){const i=Number(a.split(':')[1]),x=BOOKS[i],s=target();s.current={title:x.title,author:x.author,progress:0,pages:x.pages};save();$('detailDialog').close();renderHome();toast(`${first(s.name)} mula membaca ${x.title}`);return}
  if(b.classList.contains('iconbtn'))detail('Pemberitahuan','<p>Tiada pemberitahuan baharu.</p>');
@@ -345,6 +478,91 @@ $('borrowForm').addEventListener('submit',e=>{e.preventDefault();
  $('borrowDialog').close();if(route==='Buku')renderBooks($('bookSearch')?.value||'');else renderHome();
  toast(`${b.title} dipinjam oleh ${first(s.name)}`)});
 window.__nilamPSS={getState:()=>JSON.parse(JSON.stringify(state)),go,renderMurid,openRecord,reset:()=>{localStorage.removeItem(KEY);state=seed();renderHome()}};
+/* --- Book form dialog --- */
+function openBookForm(idx){
+ const dlg=$('bookFormDialog');if(!dlg)return;
+ const isEdit=idx>=0&&idx<BOOKS.length;
+ $('bookFormTitle').textContent=isEdit?'Edit Buku':'Tambah Buku';
+ $('bfEditIdx').value=idx;
+ $('bfDeleteBtn').style.display=isEdit?'inline-flex':'none';
+ $('bookFormError').textContent='';
+ $('bfCoverPreview').style.display='none';
+ if(isEdit){
+  const b=BOOKS[idx];
+  $('bfTitle').value=b.title||'';
+  $('bfAuthor').value=b.author||'';
+  $('bfType').value=b.type||'Buku';
+  $('bfPages').value=b.pages||'';
+  $('bfCat').value=b.cat||'Cerita';
+  $('bfDesc').value=b.desc||'';
+  const covers=getBookCovers();
+  if(covers[idx]){$('bfCoverPreview').src=covers[idx];$('bfCoverPreview').style.display='block'}
+ }else{
+  $('bookForm').reset();$('bfType').value='Buku';$('bfCat').value='Cerita';
+ }
+ dlg.showModal();
+}
+$('bookFormDialog').querySelector('.bookform-close').addEventListener('click',()=>$('bookFormDialog').close());
+$('bookFormDialog').addEventListener('close',()=>{if(opener)opener.focus()});
+/* Book cover upload in form - delegated */
+$('bookFormDialog').addEventListener('change',async e=>{
+ if(e.target.id!=='bfCoverInput')return;
+ const f=e.target.files[0];if(!f)return;
+ const prev=$('bfCoverPreview');const lbl=$('bfCoverLabel');
+ prev.src=URL.createObjectURL(f);prev.style.display='block';
+ lbl.classList.add('uploading');lbl.innerHTML='<span class="upload-spinner"></span><span>Memuat naik...</span>';
+ try{const r=await uploadToR2(f);$('bfCoverPreview').dataset.uploadedUrl=r.url;toast('Gambar dimuat naik')}
+ catch(ex){$('bookFormError').textContent='Ralat muat naik: '+ex.message;prev.style.display='none'}
+ finally{lbl.classList.remove('uploading');lbl.innerHTML=`<svg class="svg"><use href="#i-plus"/></svg><span>Pilih gambar</span><input type="file" id="bfCoverInput" accept="image/*">`}
+});
+/* Book form submit */
+$('bookForm')?.addEventListener('submit',e=>{
+ e.preventDefault();
+ const idx=Number($('bfEditIdx').value);
+ const title=String($('bfTitle').value).trim();
+ const author=String($('bfAuthor').value).trim();
+ const pages=Number($('bfPages').value);
+ const type=String($('bfType').value);
+ const cat=String($('bfCat').value);
+ const desc=String($('bfDesc').value).trim();
+ if(!title||!author||!pages||pages<1){$('bookFormError').textContent='Isi tajuk, pengarang dan halaman.';return}
+ const colors=['#BDF0DD','#FFD8D8','#CFE8FF','#E3D5FF','#FFE89A','#BDECE7'];
+ const book={title,author,type,pages,cat,desc,color:colors[BOOKS.length%colors.length]};
+ const isEdit=idx>=0&&idx<BOOKS.length;
+ if(isEdit){Object.assign(BOOKS[idx],book)}
+ else{BOOKS.push(book)}
+ /* persist custom books */
+ const custom=loadCustomBooks();
+ if(isEdit){
+  const ci=custom.findIndex(c=>c.title===BOOKS[idx].title||BOOKS.indexOf(c)===idx);
+  if(ci>=0)custom[ci]=book;
+ }else{custom.push(book)}
+ saveCustomBooks(custom);
+ /* save cover if uploaded */
+ const coverUrl=$('bfCoverPreview').dataset?.uploadedUrl;
+ if(coverUrl){setBookCover(isEdit?idx:BOOKS.length-1,coverUrl)}
+ $('bookFormDialog').close();
+ renderBooks();toast(isEdit?'Buku dikemaskini':'Buku ditambah');
+});
+/* Book delete */
+$('bfDeleteBtn')?.addEventListener('click',()=>{
+ const idx=Number($('bfEditIdx').value);
+ if(idx<0||idx>=BOOKS.length)return;
+ const b=BOOKS[idx];
+ detail(`Padam "${b.title}"?`,'<p>Buku ini akan dipadamkan. Tindakan ini tidak boleh dibatalkan.</p>','Padam','confirm-delete-book');
+});
+/* School settings save */
+document.addEventListener('change',e=>{
+ if(e.target.id==='ssLogoInput'){
+  const f=e.target.files[0];if(!f)return;
+  const lbl=$('ssLogoLabel');if(!lbl)return;
+  lbl.classList.add('uploading');lbl.innerHTML='<span class="upload-spinner"></span><span>Memuat naik...</span>';
+  uploadToR2(f).then(r=>{const ss=getSchoolSettings();ss.logoUrl=r.url;saveSchoolSettings(ss);renderProfil();toast('Logo dimuat naik')})
+  .catch(ex=>{toast('Ralat: '+ex.message)})
+  .finally(()=>{lbl.classList.remove('uploading');lbl.innerHTML=`<svg class="svg"><use href="#i-plus"/></svg><span>Pilih logo</span><input type="file" id="ssLogoInput" accept="image/*">`});
+ }
+ if(e.target.id==='restoreInput')restoreData(e.target.files[0]);
+});
 })();
 </script>
 </body></html>
