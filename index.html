@@ -26,6 +26,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .pickerwrap .btn{width:100%}
 .pickerlabel{font-size:13px;font-weight:800;color:var(--muted)}
 .picker{width:100%;height:50px;border:2px solid var(--ink);border-radius:999px;background:#fff;padding:0 14px;font-size:15px;font-weight:700;box-shadow:2px 2px 0 var(--ink)}
+.bookstatus{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:800;border:2px solid var(--ink)}
+.bookstatus.ada{background:#BDF0DD;color:#0a6b4e}
+.bookstatus.dipinjam{background:#FFE0A0;color:#8a5a00}
+.bookstatus .dot-sm{width:7px;height:7px;border-radius:50%;border:1px solid var(--ink)}
+.bookstatus.ada .dot-sm{background:#00B47D}
+.bookstatus.dipinjam .dot-sm{background:#e68a00}
+.borrowinfo{font-size:13px;color:var(--muted);font-weight:600;margin:4px 0 6px}
+.overduecard{display:flex;align-items:center;gap:12px;padding:12px;border:2px solid var(--danger);border-radius:16px;background:#FFF0F0;margin-bottom:8px}
+.overduecard h3{font-size:14px;font-weight:800;margin:0}
+.overduecard p{font-size:13px;color:var(--danger);font-weight:600;margin:2px 0 0}
+.overduebadge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;background:var(--danger);color:#fff;font-size:13px;font-weight:800;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -65,6 +76,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 <dialog id="detailDialog" aria-labelledby="detailTitle"><div class="sheethead"><h2 id="detailTitle">Butiran</h2><button class="close detail-close" type="button" aria-label="Tutup"><svg class="svg"><use href="#i-x"/></svg></button></div><div class="detailbody" id="detailBody"></div><div class="detailfoot"><button class="btn secondary detail-close" type="button">Tutup</button><button class="btn primary" id="detailPrimary" type="button">Teruskan</button></div></dialog>
 
+<dialog id="borrowDialog" aria-labelledby="borrowTitle"><div class="sheethead"><h2 id="borrowTitle">Pinjam buku</h2><button class="close borrow-close" type="button" aria-label="Tutup"><svg class="svg"><use href="#i-x"/></svg></button></div><form class="form" id="borrowForm" novalidate>
+<div class="field"><label for="borrowStu">Murid</label><select id="borrowStu" name="borrowStu" required></select></div>
+<input type="hidden" id="borrowBookIdx" name="borrowBookIdx">
+<p class="error" id="borrowError" role="alert"></p>
+<button class="btn save" type="submit"><svg class="svg"><use href="#i-book"/></svg>Pinjam</button></form></dialog>
+
 <script>
 (()=>{'use strict';
 const KEY='nilam_pss_guru_v1', $=id=>document.getElementById(id), MAIN=$('main'), HOME=MAIN.innerHTML;
@@ -79,7 +96,7 @@ const BOOKS=[
  {title:'Tokoh Sains Malaysia',author:'R. Iskandar',type:'Majalah',pages:36,cat:'Tokoh',color:'#BDECE7',desc:'Kisah ringkas rakyat Malaysia yang menyumbang kepada bidang sains.'}
 ];
 const rec=(title,pages,type,author,summary,date)=>({title,pages,type,author,summary,date});
-const seed=()=>({guru:{name:'Pn. Siti',role:'Guru PSS',school:'SK Seri Murni'},selected:null,prefs:{reminder:true,parent:false},students:[
+const seed=()=>({guru:{name:'Pn. Siti',role:'Guru PSS',school:'SK Seri Murni'},selected:null,prefs:{reminder:true,parent:false},borrows:{0:{status:'dipinjam',borrowedBy:'s1',borrowDate:'2026-09-04',dueDate:'2026-09-18'},3:{status:'dipinjam',borrowedBy:'s4',borrowDate:'2026-09-10',dueDate:'2026-09-24'}},students:[
  {id:'s1',name:'Aina Zulaikha',kelas:'Tahun 4 Inovatif',books:5,pages:320,current:{title:'Legenda Tasik Biru',author:'Rohana Ismail',progress:68,pages:80},saved:[0,2],records:[
   rec('Rahsia Hutan Bakau',40,'Buku','Siti Hajar','Hutan bakau menahan hakisan dan menjadi rumah hidupan laut.','2026-09-02'),
   rec('Planet Kita',24,'E-buku','Nadia Karim','Bumi perlu dijaga bersama supaya udara kekal bersih.','2026-09-05'),
@@ -100,7 +117,7 @@ const seed=()=>({guru:{name:'Pn. Siti',role:'Guru PSS',school:'SK Seri Murni'},s
   rec('Planet Kita',24,'E-buku','Nadia Karim','Kita boleh menanam pokok untuk menjaga bumi.','2026-09-07'),
   rec('Sang Kancil dan Buaya',32,'Buku','Cerita rakyat','Jangan mudah percaya, gunakan akal.','2026-09-11')]}
 ]});
-function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||'{}'),d=seed();return s&&s.students&&s.students.length?{...d,...s,prefs:{...d.prefs,...(s.prefs||{})},guru:{...d.guru,...(s.guru||{})}}:d}catch{return seed()}}
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||'{}'),d=seed();return s&&s.students&&s.students.length?{...d,...s,prefs:{...d.prefs,...(s.prefs||{})},guru:{...d.guru,...(s.guru||{})},borrows:{...d.borrows,...(s.borrows||{})}}:d}catch{return seed()}}
 let state=load(), route='Utama', filter='Semua', q='', bookFilter='Semua', lencanaFor='all', opener=null, timer;
 const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -122,6 +139,10 @@ const BADGES=[
  {id:'books',title:'15 Bahan',hint:'Merekod 15 bahan bacaan.',ic:'i-award',goal:15,val:s=>s.books}
 ];
 const earned=s=>BADGES.filter(b=>b.val(s)>=b.goal).length;
+const daysLeft=d=>{if(!d)return 0;const diff=Math.ceil((new Date(d+'T00:00:00')-new Date())/864e5);return diff};
+const bookStatus=i=>state.borrows[i]||{status:'ada',borrowedBy:null,borrowDate:null,dueDate:null};
+const overdueBooks=()=>Object.entries(state.borrows).filter(([,v])=>v.status==='dipinjam'&&daysLeft(v.dueDate)<0).map(([i])=>({i:Number(i),...BOOKS[Number(i)],...state.borrows[i]}));
+const borrowedBooks=()=>Object.entries(state.borrows).filter(([,v])=>v.status==='dipinjam').map(([i])=>({i:Number(i),...BOOKS[Number(i)],...state.borrows[i]}));
 function activate(name){document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.page===name))}
 function header(title,sub){return `<header class="routebar"><div class="line"><button class="backbtn" data-page="Utama" aria-label="Kembali ke utama">${icon('i-arrow')}</button><h1>${title}</h1></div><p>${sub}</p></header>`}
 function stuItems(){const ql=q.toLowerCase();return state.students.filter(s=>(filter==='Semua'||s.kelas===filter)&&(!ql||s.name.toLowerCase().includes(ql)))}
@@ -136,7 +157,10 @@ function renderHome(){route='Utama';MAIN.innerHTML=HOME;activate('Utama');MAIN.s
  $('kpiActive').textContent=act;
  $('kpiLabel').textContent=`${classes().length} kelas · ${t.records} rekod`;
  $('kpiGrid').innerHTML=`<article class="stat yellow">${icon('i-user')}<b>${t.students}</b><span>jumlah murid</span></article><article class="stat">${icon('i-book')}<b>${t.books}</b><span>buku dibaca</span></article><article class="stat green">${icon('i-pages')}<b>${t.pages}</b><span>halaman dibaca</span></article><article class="stat">${icon('i-flame')}<b>${act}</b><span>murid aktif</span></article>`;
- fillClass();fillPick('quickStu',state.selected);renderStuList()}
+ const ov=overdueBooks();
+ const ovHTML=ov.length?`<section class="section"><div class="sectionhead"><h2>Buku Lewat Tempoh</h2><span class="overduebadge">${ov.length} buku</span></div><div class="booklist">${ov.map(b=>{const s=student(b.borrowedBy);const dl=Math.abs(daysLeft(b.dueDate));return`<div class="overduecard"><div style="flex:1"><h3>${esc(b.title)}</h3><p>${s?esc(s.name):'Tidak diketahui'} · ${dl} hari lewat</p></div><button class="mini" data-pulang="${BOOKS.indexOf(b)}">Pulang</button></div>`}).join('')}</div></section>`:'';
+ fillClass();fillPick('quickStu',state.selected);renderStuList();
+ if(ovHTML){$('kpiGrid').insertAdjacentHTML('afterend',ovHTML)}}
 function renderStuList(){const el=$('stuList');if(!el)return;el.innerHTML=stuListHTML();$('stuCount').textContent=`${stuItems().length} murid`}
 function renderMurid(id){const s=student(id);if(!s){renderHome();return}state.selected=s.id;save();route='Murid';
  MAIN.innerHTML=header(esc(s.name),`${esc(s.kelas)} · ${s.books} bahan · ${s.pages} halaman`)
@@ -148,9 +172,15 @@ function renderMurid(id){const s=student(id);if(!s){renderHome();return}state.se
  <section class="section"><div class="sectionhead"><h2>Lencana</h2><span>${earned(s)} / ${BADGES.length}</span></div><div class="badgegrid">${badgeHTML(s)}</div></section>
  <p class="route-note">Data demonstrasi Guru PSS.</p>`;
  activate('Utama');MAIN.scrollTop=0}
-function bookItems(query=''){const ql=query.toLowerCase();const t=target();return BOOKS.map((b,i)=>({...b,i})).filter(b=>(bookFilter==='Semua'||b.cat===bookFilter)&&(`${b.title} ${b.author}`.toLowerCase().includes(ql))).map(b=>`<article class="bookcard"><div class="bookart" style="--art:${b.color}"></div><div><h2>${b.title}</h2><p>${b.author} · ${b.pages} halaman</p><div class="cardactions"><button class="mini main" data-book="${b.i}">Lihat</button><button class="mini" data-save="${b.i}">${t.saved.includes(b.i)?'Disimpan':'Simpan'}</button></div></div></article>`).join('')||'<div class="empty">Tiada buku sepadan.</div>'}
+function bookItems(query=''){const ql=query.toLowerCase();const t=target();return BOOKS.map((b,i)=>({...b,i,...bookStatus(i)})).filter(b=>(bookFilter==='Semua'||bookFilter==='Dipinjam'&&b.status==='dipinjam'||bookFilter===b.cat)&&(`${b.title} ${b.author}`.toLowerCase().includes(ql))).map(b=>{
+ const badge=b.status==='dipinjam'?`<span class="bookstatus dipinjam"><span class="dot-sm"></span>Dipinjam</span>`:`<span class="bookstatus ada"><span class="dot-sm"></span>Ada</span>`;
+ const sname=b.borrowedBy?(student(b.borrowedBy)||{name:'?'}).name:'';
+ const dl=daysLeft(b.dueDate);
+ const borrowInfo=b.status==='dipinjam'?`<div class="borrowinfo">Dipinjam oleh: ${esc(sname)} · ${dl>=0?dl+' hari lagi':Math.abs(dl)+' hari lewat'}</div>`:'';
+ const actionBtn=b.status==='dipinjam'?`<button class="mini" data-pulang="${b.i}">Pulang</button>`:`<button class="mini" data-pinjam="${b.i}">Pinjam</button>`;
+ return `<article class="bookcard"><div class="bookart" style="--art:${b.color}">${badge}</div><div><h2>${b.title}</h2><p>${b.author} · ${b.pages} halaman</p>${borrowInfo}<div class="cardactions"><button class="mini main" data-book="${b.i}">Lihat</button>${actionBtn}<button class="mini" data-save="${b.i}">${t.saved.includes(b.i)?'Disimpan':'Simpan'}</button></div></div></article>`}).join('')||'<div class="empty">Tiada buku sepadan.</div>'}
 function renderBooks(query=''){route='Buku';activate('Buku');
- MAIN.innerHTML=header('Jelajah buku','Katalog pusat sumber untuk rujukan guru.')+`<label class="searchbox">${icon('i-stack')}<input id="bookSearch" value="${esc(query)}" placeholder="Cari tajuk atau penulis" aria-label="Cari buku"></label><div class="filters" aria-label="Kategori buku">${['Semua','Cerita','Sains','Alam','Tokoh'].map(x=>`<button class="filter ${bookFilter===x?'active':''}" data-filter="${x}">${x}</button>`).join('')}</div><div class="booklist" id="bookList">${bookItems(query)}</div><p class="route-note">Murid dipilih: ${esc(target().name)}. Semua tajuk ialah data demonstrasi.</p>`;
+ MAIN.innerHTML=header('Jelajah buku','Katalog pusat sumber untuk rujukan guru.')+`<label class="searchbox">${icon('i-stack')}<input id="bookSearch" value="${esc(query)}" placeholder="Cari tajuk atau penulis" aria-label="Cari buku"></label><div class="filters" aria-label="Kategori buku">${['Semua','Cerita','Sains','Alam','Tokoh','Dipinjam'].map(x=>`<button class="filter ${bookFilter===x?'active':''}" data-filter="${x}">${x}</button>`).join('')}</div><div class="booklist" id="bookList">${bookItems(query)}</div><p class="route-note">Murid dipilih: ${esc(target().name)}. Semua tajuk ialah data demonstrasi.</p>`;
  MAIN.scrollTop=0}
 function renderLencana(){route='Lencana';activate('Lencana');
  const sub=lencanaFor==='all'?aggregate():(student(lencanaFor)||aggregate());
@@ -201,6 +231,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(b.dataset.filter){bookFilter=b.dataset.filter;renderBooks($('bookSearch')?.value||'');return}
  if(b.dataset.book!==undefined){bookDetail(Number(b.dataset.book));return}
  if(b.dataset.save!==undefined){const i=Number(b.dataset.save),t=target(),at=t.saved.indexOf(i);at<0?t.saved.push(i):t.saved.splice(at,1);save();renderBooks($('bookSearch')?.value||'');toast(at<0?`Disimpan untuk ${first(t.name)}`:`Dibuang daripada simpanan ${first(t.name)}`);return}
+ if(b.dataset.pinjam!==undefined){openBorrowDialog(Number(b.dataset.pinjam));return}
+ if(b.dataset.pulang!==undefined){returnBook(Number(b.dataset.pulang));return}
  if(b.dataset.record!==undefined){const[x,i]=b.dataset.record.split(':');recordDetail(x,Number(i));return}
  const a=b.dataset.action;
  if(a==='quick-add'){openRecord(b,$('quickStu').value);return}
@@ -217,6 +249,26 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  else if(b.classList.contains('secondary'))go('Buku');
 });
 renderHome();document.body.dataset.ready='true';
+function openBorrowDialog(i){
+ const b=BOOKS[i];if(!b)return;
+ $('borrowBookIdx').value=i;$('borrowError').textContent='';
+ const el=$('borrowStu');el.innerHTML=state.students.map(s=>`<option value="${s.id}">${esc(s.name)} · ${esc(s.kelas)}</option>`).join('');
+ $('borrowTitle').textContent=`Pinjam: ${b.title}`;
+ $('borrowDialog').showModal();setTimeout(()=>el.focus(),0)}
+function returnBook(i){
+ const b=BOOKS[i],bs=bookStatus(i);if(!b||bs.status!=='dipinjam')return;
+ const s=student(bs.borrowedBy);delete state.borrows[i];save();
+ if(route==='Buku')renderBooks($('bookSearch')?.value||'');else renderHome();
+ toast(`${b.title} dikembalikan${s?' oleh '+first(s.name):''}`)}
+$('borrowDialog').querySelector('.borrow-close').addEventListener('click',()=>$('borrowDialog').close());
+$('borrowDialog').addEventListener('close',()=>{if(opener)opener.focus()});
+$('borrowForm').addEventListener('submit',e=>{e.preventDefault();
+ const i=Number($('borrowBookIdx').value),sid=String($('borrowStu').value),b=BOOKS[i],s=student(sid);
+ if(!s){$('borrowError').textContent='Pilih murid.';return}
+ const d=new Date();d.setDate(d.getDate()+14);
+ state.borrows[i]={status:'dipinjam',borrowedBy:sid,borrowDate:today(),dueDate:d.toISOString().slice(0,10)};save();
+ $('borrowDialog').close();if(route==='Buku')renderBooks($('bookSearch')?.value||'');else renderHome();
+ toast(`${b.title} dipinjam oleh ${first(s.name)}`)});
 window.__nilamPSS={getState:()=>JSON.parse(JSON.stringify(state)),go,renderMurid,openRecord,reset:()=>{localStorage.removeItem(KEY);state=seed();renderHome()}};
 })();
 </script>
