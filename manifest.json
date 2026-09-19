@@ -1,0 +1,17 @@
+{
+  "name": "NILAM PSS — Rekod Bacaan",
+  "short_name": "NILAM PSS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6F3E6",
+  "theme_color": "#FFD02B",
+  "description": "Rekod bacaan dan pantau kemajuan NILAM murid.",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='128' fill='%23FFD02B'/><text x='256' y='340' font-size='280' text-anchor='middle' font-family='sans-serif' font-weight='900' fill='%23111'>N</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
