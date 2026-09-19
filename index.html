@@ -259,7 +259,7 @@ function header(title,sub){return `<header class="routebar"><div class="line"><b
 function stuItems(){const ql=q.toLowerCase();return state.students.filter(s=>(filter==='Semua'||s.kelas===filter)&&(!ql||s.name.toLowerCase().includes(ql)))}
 function fillPick(id,keep){const el=$(id);if(!el)return;el.innerHTML=state.students.map((s,i)=>`<option value="${s.id}">${esc(s.name)} · ${esc(s.kelas)}</option>`).join('');if(keep&&student(keep))el.value=keep}
 function fillClass(){const el=$('classPick');if(!el)return;el.innerHTML=['Semua',...classes()].map(c=>`<option value="${esc(c)}">${c==='Semua'?'Semua Kelas':esc(c)}</option>`).join('');el.value=filter}
-function badgeHTML(s){return BADGES.map(b=>{const ok=b.val(s)>=b.goal;return `<article class="achievement${ok?'':' locked'}"><span class="medal">${icon(b.ic)}</span><h3>${b.title}</h3><p>${ok?b.hint:`${b.hint} ${Math.max(0,b.goal-b.val(s))} lagi diperlukan.`}</p></article>`}).join('')}
+function badgeHTML(s){return BADGES.map(b=>{const ok=b.val(s)>=b.goal;const certBtn=ok?`<button class="mini" data-badgecert="${b.title}" style="margin-top:6px">Cetak Sijil</button>`:'';return `<article class="achievement${ok?'':' locked'}"><span class="medal">${icon(b.ic)}</span><h3>${b.title}</h3><p>${ok?b.hint:`${b.hint} ${Math.max(0,b.goal-b.val(s))} lagi diperlukan.`}</p>${certBtn}</article>`}).join('')}
 function recordsHTML(s){return s.records.map((r,i)=>({r,i})).reverse().map(({r,i})=>`<article class="readrow"><div class="thumb ${i%2?'green':''}">${icon('i-book')}</div><div><h3>${esc(r.title)}</h3><p>${fmt(r.date)} · ${r.pages} halaman · ${esc(r.type)}</p></div><button class="chev" data-record="${s.id}:${i}" aria-label="Lihat rekod ${esc(r.title)}">${icon('i-arrow')}</button></article>`).join('')||'<div class="empty">Belum ada rekod bacaan.</div>'}
 function stuListHTML(){const rows=stuItems();return rows.map((s,i)=>`<button class="readrow sturow" data-stu="${s.id}"><span class="thumb ${['','green','blue'][i%3]}">${initials(s.name)}</span><span><span class="nm">${esc(s.name)}</span><span class="meta">${esc(s.kelas)} · ${s.books} bahan · ${s.pages} halaman</span><span class="meta">Sedang baca: ${esc(s.current?s.current.title:'—')}</span></span><span class="chev">${icon('i-arrow')}</span></button>`).join('')||'<div class="empty">Tiada murid sepadan.</div>'}
 function renderHome(){route='Utama';MAIN.innerHTML=HOME;activate('Utama');MAIN.scrollTop=0;
@@ -438,6 +438,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(b.dataset.pinjam!==undefined){openBorrowDialog(Number(b.dataset.pinjam));return}
  if(b.dataset.pulang!==undefined){returnBook(Number(b.dataset.pulang));return}
  if(b.dataset.record!==undefined){const[x,i]=b.dataset.record.split(':');recordDetail(x,Number(i));return}
+ if(b.dataset.badgecert!==undefined){const sub=lencanaFor==='all'?aggregate():(student(lencanaFor)||aggregate());const ss=getSchoolSettings();const certWin=window.open('','_blank');if(certWin){certWin.document.write(buildCertificate(sub,ss,b.dataset.badgecert));certWin.document.close()}return}
  const a=b.dataset.action;
  if(a==='quick-add'){openRecord(b,$('quickStu').value);return}
  if(a==='notifications'){detail('Pemberitahuan',`<p>${totals().records} rekod bacaan direkodkan daripada ${totals().students} murid. Tiada tugasan tertunggak.</p>`);return}
@@ -448,7 +449,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(a==='export-books-csv'){exportBooksCSV();return}
  if(a==='backup-data'){backupData();return}
  if(a==='classes'){detail('Senarai kelas',classes().map(c=>`<p><strong>${esc(c)}</strong> — ${state.students.filter(s=>s.kelas===c).length} murid</p>`).join(''));return}
- if(a==='certificate'){const sub=lencanaFor==='all'?aggregate():(student(lencanaFor)||aggregate());detail(`Sijil ${sub.name}`,`<p>${esc(sub.name)} telah merekod ${sub.books} bahan bacaan dan ${sub.pages} halaman.</p><p>Sijil ini hanya untuk demonstrasi.</p>`,'Cetak','print');return}
+ if(a==='certificate'){const sub=lencanaFor==='all'?aggregate():(student(lencanaFor)||aggregate());const ss=getSchoolSettings();const certWin=window.open('','_blank');if(certWin){certWin.document.write(buildCertificate(sub,ss));certWin.document.close()}return}
  if(a==='print'){window.print();$('detailDialog').close();return}
  if(a==='reset'){detail('Tetapkan semula demo','<p>Semua perubahan demonstrasi pada peranti ini akan dibuang.</p>','Tetapkan semula','confirm-reset');return}
  if(a==='confirm-reset'){localStorage.removeItem(KEY);state=seed();$('detailDialog').close();renderHome();toast('Demo ditetapkan semula');return}
@@ -495,6 +496,49 @@ $('borrowForm').addEventListener('submit',e=>{e.preventDefault();
  state.borrows[bk(i)]={status:'dipinjam',borrowedBy:sid,borrowDate:today(),dueDate:d.toISOString().slice(0,10)};save();
  $('borrowDialog').close();if(route==='Buku')renderBooks($('bookSearch')?.value||'');else renderHome();
  toast(`${b.title} dipinjam oleh ${first(s.name)}`)});
+/* --- Sijil Pencapaian NILAM --- */
+function buildCertificate(sub,ss,badge){
+ const nama=sub.name||'Murid';
+ const sekolah=ss.namaSekolah||'Pusat Sumber Sekolah';
+ const logo=ss.logoUrl?`<img src="${esc(ss.logoUrl)}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin-bottom:8px" alt="Logo sekolah">`:'';
+ const now=new Date();
+ const tarikh=`${now.getDate()} ${MON[now.getMonth()]} ${now.getFullYear()}`;
+ const badgeLine=badge?`<p style="font-size:18px;margin:8px 0 0;font-weight:700">🏅 Lencana: ${esc(badge)}</p>`:'';
+ return `<!doctype html><html lang="ms"><head><meta charset="utf-8"><title>Sijil Pencapaian NILAM</title><style>
+ @page{size:A4 landscape;margin:0}
+ @media print{.no-print{display:none!important}}
+ body{margin:0;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#e8e4d8}
+ .cert{width:297mm;min-height:210mm;padding:24mm 28mm;box-sizing:border-box;background:#fff;text-align:center;position:relative;border:3px solid #111;outline:8px solid #FFD02B;outline-offset:4px}
+ .cert::before{content:'';position:absolute;inset:10mm;border:2px solid #c8a84e;pointer-events:none}
+ .cert::after{content:'';position:absolute;inset:14mm;border:1px dashed #c8a84e;pointer-events:none}
+ h1{font-size:36px;margin:0 0 6px;letter-spacing:2px;color:#111}
+ h2{font-size:20px;margin:0 0 24px;font-weight:600;color:#444}
+ .name{font-size:32px;font-weight:900;margin:16px 0 12px;letter-spacing:1px;border-bottom:2px solid #c8a84e;display:inline-block;padding-bottom:4px}
+ .achieve{font-size:17px;line-height:1.6;margin:18px auto;max-width:580px;color:#222}
+ .date{font-size:15px;color:#555;margin:22px 0}
+ .sig{display:flex;justify-content:space-around;margin-top:40px}
+ .sig div{width:200px;text-align:center}
+ .sig .line{border-top:1.5px solid #111;margin-top:48px;padding-top:6px;font-size:14px;font-weight:700}
+ .btn-print{position:fixed;top:16px;right:16px;min-height:44px;padding:10px 24px;border:2px solid #111;border-radius:999px;background:#FFD02B;font-size:16px;font-weight:800;cursor:pointer;box-shadow:3px 3px 0 #111;z-index:10}
+ @media print{body{background:#fff}.cert{box-shadow:none;border-color:#111}.btn-print{display:none}}
+ </style></head><body>
+ <button class="btn-print no-print" onclick="window.print()">Cetak Sijil</button>
+ <div class="cert">
+  ${logo}
+  <h1>Sijil Pencapaian NILAM</h1>
+  <h2>${esc(sekolah)}</h2>
+  <p style="font-size:16px;margin:0 0 8px">Dengan ini disahkan bahawa</p>
+  <div class="name">${esc(nama)}</div>
+  <p class="achieve">telah menyelesaikan <strong>${sub.books}</strong> bahan bacaan dengan jumlah <strong>${sub.pages}</strong> halaman melalui program NILAM Pusat Sumber Sekolah.</p>
+  ${badgeLine}
+  <p class="date">Dikeluarkan pada: ${tarikh}</p>
+  <div class="sig">
+   <div><div class="line">Guru PSS</div></div>
+   <div><div class="line">Guru Besar</div></div>
+  </div>
+ </div>
+ </body></html>`;
+}
 window.__nilamPSS={getState:()=>JSON.parse(JSON.stringify(state)),go,renderMurid,openRecord,reset:()=>{localStorage.removeItem(KEY);state=seed();renderHome()}};
 /* --- Book form dialog --- */
 function openBookForm(idx){
