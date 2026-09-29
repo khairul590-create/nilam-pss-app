@@ -106,7 +106,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <div class="pickerwrap"><label class="pickerlabel" for="quickStu">Pilih murid</label><select class="picker" id="quickStu" aria-label="Pilih murid untuk rekod pantas"></select><button class="btn primary" data-action="quick-add"><svg class="svg"><use href="#i-pen"/></svg>Tambah rekod</button></div></section>
 <small class="demo">Paparan Guru PSS · data demonstrasi</small>
 </main>
-<nav class="bottomnav" aria-label="Navigasi utama"><button class="navbtn active" data-page="Utama"><svg class="svg"><use href="#i-home"/></svg>Utama</button><button class="navbtn" data-page="Buku"><svg class="svg"><use href="#i-stack"/></svg>Buku</button><button class="navbtn" id="navRecord" data-page="Rekod"><svg class="svg"><use href="#i-plus"/></svg>Rekod</button><button class="navbtn" data-page="Lencana"><svg class="svg"><use href="#i-award"/></svg>Lencana</button><button class="navbtn" data-page="Profil"><svg class="svg"><use href="#i-user"/></svg>Profil</button></nav>
+<nav class="bottomnav" aria-label="Navigasi utama"><button class="navbtn active" data-page="Utama"><svg class="svg"><use href="#i-home"/></svg>Utama</button><button class="navbtn" data-page="Buku"><svg class="svg"><use href="#i-stack"/></svg>Buku</button><button class="navbtn" id="navRecord" data-page="Rekod"><svg class="svg"><use href="#i-plus"/></svg>Rekod</button><button class="navbtn" data-page="Lencana"><svg class="svg"><use href="#i-award"/></svg>Bintang</button><button class="navbtn" data-page="Profil"><svg class="svg"><use href="#i-user"/></svg>Profil</button></nav>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
 
@@ -188,7 +188,7 @@ if(s.covers){const mc={};Object.entries(s.covers).forEach(([k,v])=>{const nk=typ
 const smap=new Map(d.students.map(s=>[s.id,s]));
 s.students.forEach(st=>{const ex=smap.get(st.id);if(ex)smap.set(st.id,{...ex,...st,records:st.records&&st.records.length?st.records:ex.records,current:st.current||ex.current,saved:st.saved&&st.saved.length?st.saved:ex.saved})});
 return{...d,...s,students:[...smap.values()],prefs:{...d.prefs,...(s.prefs||{})},guru:{...d.guru,...(s.guru||{})},borrows:{...d.borrows,...(s.borrows||{})},covers:{...(d.covers||{}),...(s.covers||{})},reservations:{...(d.reservations||{}),...(s.reservations||{})}}}catch{return seed()}}
-let state=load(), route='Utama', filter='Semua', q='', bookFilter='Semua', lencanaFor='all', opener=null, timer;
+let state=load(), route='Utama', filter='Semua', q='', bookFilter='Semua', bintangFor=state.selected||state.students[0]?.id||'', opener=null, timer;
 const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ADMIN_HASH=btoa('123456');
@@ -254,15 +254,19 @@ const days=s=>new Set((s.records||[]).map(r=>r.date).filter(Boolean)).size;
 const student=id=>state.students.find(s=>s.id===id);
 const classes=()=>[...new Set(state.students.map(s=>s.kelas))].sort();
 const totals=()=>state.students.reduce((a,s)=>({students:a.students+1,books:a.books+s.books,pages:a.pages+s.pages,active:a.active+(s.books>=3?1:0),records:a.records+s.records.length}),{students:0,books:0,pages:0,active:0,records:0});
-const aggregate=()=>{const t=totals();return{id:'all',name:'Semua murid',kelas:`${classes().length} kelas`,books:t.books,pages:t.pages,records:state.students.flatMap(s=>s.records)}};
 const target=()=>student(state.selected)||state.students[0];
-const BADGES=[
- {id:'first',title:'Langkah Pertama',hint:'Rekod bacaan pertama.',ic:'i-book',goal:1,val:s=>s.records.length},
- {id:'flame',title:'3 Hari Membaca',hint:'Membaca pada tiga hari berbeza.',ic:'i-flame',goal:3,val:s=>days(s)},
- {id:'pages',title:'500 Halaman',hint:'Melepasi 500 halaman.',ic:'i-pages',goal:500,val:s=>s.pages},
- {id:'books',title:'15 Bahan',hint:'Merekod 15 bahan bacaan.',ic:'i-award',goal:15,val:s=>s.books}
+function bintangNilam(jumlah){return Math.min(5,Math.floor(Math.max(0,Number(jumlah)||0)/144))}
+function statusBintang(s){const jumlah=s&&Array.isArray(s.records)?s.records.length:0,bintang=bintangNilam(jumlah),next=bintang<5?(bintang+1)*144:null;return{jumlah,bintang,next,baki:next?next-jumlah:0,pct:next?Math.round((jumlah-bintang*144)/144*100):100}}
+const TAHAP_BINTANG=[
+ {bintang:0,julat:'0–143'},
+ {bintang:1,julat:'144–287'},
+ {bintang:2,julat:'288–431'},
+ {bintang:3,julat:'432–575'},
+ {bintang:4,julat:'576–719'},
+ {bintang:5,julat:'720 ke atas'}
 ];
-const earned=s=>BADGES.filter(b=>b.val(s)>=b.goal).length;
+const teksBintang=n=>'★'.repeat(n)+'☆'.repeat(5-n);
+function tahapBintangHTML(current){return TAHAP_BINTANG.map(t=>{const dicapai=t.bintang===0?current===0:current>=t.bintang;return `<article class="achievement${dicapai?'':' locked'}"><span class="medal">${icon('i-award')}</span><h3>${t.bintang?`${'★'.repeat(t.bintang)} · ${t.bintang} Bintang`:'Tiada Bintang'}</h3><p>${t.julat} bahan bacaan</p></article>`}).join('')}
 const daysLeft=d=>{if(!d)return 0;const diff=Math.ceil((new Date(d+'T00:00:00')-new Date())/864e5);return diff};
 const bookStatus=i=>state.borrows[bk(i)]||{status:'ada',borrowedBy:null,borrowDate:null,dueDate:null};
 const overdueBooks=()=>Object.entries(state.borrows).filter(([,v])=>v.status==='dipinjam'&&daysLeft(v.dueDate)<0).map(([k,v])=>{const j=bkIdx(k);return j>=0?{i:j,...BOOKS[j],...v}:null}).filter(Boolean);
@@ -272,7 +276,6 @@ function header(title,sub){return `<header class="routebar"><div class="line"><b
 function stuItems(){const ql=q.toLowerCase();return state.students.filter(s=>(filter==='Semua'||s.kelas===filter)&&(!ql||s.name.toLowerCase().includes(ql)))}
 function fillPick(id,keep){const el=$(id);if(!el)return;el.innerHTML=state.students.map((s,i)=>`<option value="${s.id}">${esc(s.name)} · ${esc(s.kelas)}</option>`).join('');if(keep&&student(keep))el.value=keep}
 function fillClass(){const el=$('classPick');if(!el)return;el.innerHTML=['Semua',...classes()].map(c=>`<option value="${esc(c)}">${c==='Semua'?'Semua Kelas':esc(c)}</option>`).join('');el.value=filter}
-function badgeHTML(s){return BADGES.map(b=>{const ok=b.val(s)>=b.goal;const certBtn=ok?`<button class="mini" data-badgecert="${b.title}" style="margin-top:6px">Cetak Sijil</button>`:'';return `<article class="achievement${ok?'':' locked'}"><span class="medal">${icon(b.ic)}</span><h3>${b.title}</h3><p>${ok?b.hint:`${b.hint} ${Math.max(0,b.goal-b.val(s))} lagi diperlukan.`}</p>${certBtn}</article>`}).join('')}
 function recordsHTML(s){return s.records.map((r,i)=>({r,i})).reverse().map(({r,i})=>`<article class="readrow"><div class="thumb ${i%2?'green':''}">${icon('i-book')}</div><div><h3>${esc(r.title)}</h3><p>${fmt(r.date)} · ${r.pages} halaman · ${esc(r.type)}</p></div><button class="chev" data-record="${s.id}:${i}" aria-label="Lihat rekod ${esc(r.title)}">${icon('i-arrow')}</button></article>`).join('')||'<div class="empty">Belum ada rekod bacaan.</div>'}
 function stuListHTML(){const rows=stuItems();return rows.map((s,i)=>`<button class="readrow sturow" data-stu="${s.id}"><span class="thumb ${['','green','blue'][i%3]}">${initials(s.name)}</span><span><span class="nm">${esc(s.name)}</span><span class="meta">${esc(s.kelas)} · ${s.books} bahan · ${s.pages} halaman</span><span class="meta">Sedang baca: ${esc(s.current?s.current.title:'—')}</span></span><span class="chev">${icon('i-arrow')}</span></button>`).join('')||'<div class="empty">Tiada murid sepadan.</div>'}
 function renderHome(){route='Utama';MAIN.innerHTML=HOME;activate('Utama');MAIN.scrollTop=0;
@@ -314,14 +317,14 @@ function renderHome(){route='Utama';MAIN.innerHTML=HOME;activate('Utama');MAIN.s
   else $('kpiGrid').insertAdjacentHTML('afterend',lbHTML)
  }}
 function renderStuList(){const el=$('stuList');if(!el)return;el.innerHTML=stuListHTML();$('stuCount').textContent=`${stuItems().length} murid`}
-function renderMurid(id){const s=student(id);if(!s){renderHome();return}state.selected=s.id;save();route='Murid';
+function renderMurid(id){const s=student(id);if(!s){renderHome();return}state.selected=s.id;bintangFor=s.id;save();route='Murid';const bs=statusBintang(s);
  MAIN.innerHTML=header(esc(s.name),`${esc(s.kelas)} · ${s.books} bahan · ${s.pages} halaman`)
  +`<section class="profilehero"><div class="avatar">${icon('i-user')}</div><div><h2>${esc(s.name)}</h2><p>${esc(s.kelas)}</p></div></section>
  <div class="profileStats"><div class="profileStat"><b>${s.books}</b><span>Bahan</span></div><div class="profileStat"><b>${s.pages}</b><span>Halaman</span></div><div class="profileStat"><b>${days(s)}</b><span>Hari</span></div></div>
  <div class="pickerwrap"><button class="btn primary" data-addrec="${s.id}">${icon('i-pen')}Tambah rekod</button></div>`
  +(s.current?`<section class="section"><div class="sectionhead"><h2>Sedang dibaca</h2><span>${s.current.progress}% selesai</span></div><article class="current"><div class="currenttop"><div class="cover" aria-hidden="true"></div><div><h3>${esc(s.current.title)}</h3><p>${esc(s.current.author)}</p><div class="progressrow"><div class="bar"><i style="width:${s.current.progress}%"></i></div><b>${s.current.progress}%</b></div></div></div><button class="btn continue" data-action="progress">Tambah 5% ${icon('i-arrow')}</button></article></section>`:'')
  +`<section class="section"><div class="sectionhead"><h2>Rekod bacaan</h2><span>${s.records.length} rekod</span></div><div class="reads">${recordsHTML(s)}</div></section>
- <section class="section"><div class="sectionhead"><h2>Lencana</h2><span>${earned(s)} / ${BADGES.length}</span></div><div class="badgegrid">${badgeHTML(s)}</div></section>
+ <section class="section"><div class="sectionhead"><h2>Bintang NILAM</h2><span>${bs.bintang} / 5 bintang</span></div><div class="badgehero">${icon('i-award')}<h2 aria-label="${bs.bintang} daripada 5 bintang">${teksBintang(bs.bintang)}</h2><p>${bs.jumlah} bahan bacaan${bs.next?` · ${bs.baki} lagi untuk ${bs.bintang+1} bintang`:' · Tahap tertinggi dicapai'}</p><div class="bar"><i style="width:${bs.pct}%"></i></div>${bs.bintang?'<button class="btn continue" data-action="certificate">Lihat sijil</button>':''}</div></section>
  <p class="route-note">Data demonstrasi Guru PSS.</p>`;
  activate('Utama');MAIN.scrollTop=0}
 function bookItems(query=''){const ql=query.toLowerCase();const t=target();return BOOKS.map((b,i)=>({...b,i,...bookStatus(i)})).filter(b=>(bookFilter==='Semua'||bookFilter==='Dipinjam'&&b.status==='dipinjam'||bookFilter===b.cat)&&(`${b.title} ${b.author}`.toLowerCase().includes(ql))).map(b=>{
@@ -341,13 +344,12 @@ function renderBooks(query=''){route='Buku';activate('Buku');
  MAIN.innerHTML=header('Jelajah buku','Katalog pusat sumber untuk rujukan guru.')+(isAdmin()?`<div style="margin:12px 0"><button class="add-book-btn" data-action="add-book">${icon('i-plus')}Tambah Buku</button></div>`:'')+`<label class="searchbox">${icon('i-stack')}<input id="bookSearch" value="${esc(query)}" placeholder="Cari tajuk atau penulis" aria-label="Cari buku"></label><div class="filters" aria-label="Kategori buku">${['Semua','Cerita','Sains','Alam','Tokoh','Dipinjam'].map(x=>`<button class="filter ${bookFilter===x?'active':''}" data-filter="${x}">${x}</button>`).join('')}</div><div class="booklist" id="bookList">${bookItems(query)}</div><p class="route-note">Murid dipilih: ${esc(target().name)}. Semua tajuk ialah data demonstrasi.</p>`;
  MAIN.scrollTop=0}
 function renderLencana(){route='Lencana';activate('Lencana');
- const sub=lencanaFor==='all'?aggregate():(student(lencanaFor)||aggregate());
- const next=BADGES.find(b=>b.val(sub)<b.goal),pct=next?Math.min(100,Math.round(next.val(sub)/next.goal*100)):100;
- MAIN.innerHTML=header('Lencana','Pencapaian membaca mengikut murid atau seluruh PSS.')
- +`<div class="pickerwrap"><label class="pickerlabel" for="lencanaPick">Pilih murid</label><select class="picker" id="lencanaPick"><option value="all">Semua murid (agregat)</option>${state.students.map(s=>`<option value="${s.id}"${lencanaFor===s.id?' selected':''}>${esc(s.name)} · ${esc(s.kelas)}</option>`).join('')}</select></div>
- <section class="badgehero">${icon('i-award')}<h2>${next?esc(next.title):'Semua lencana dibuka'}</h2><p>${esc(sub.name)} · ${sub.books} bahan selesai · ${sub.pages} halaman</p><div class="bar"><i style="width:${pct}%"></i></div><button class="btn continue" data-action="certificate">Lihat sijil</button></section>
- <div class="badgegrid">${badgeHTML(sub)}</div>
- <p class="route-note">${earned(sub)} daripada ${BADGES.length} lencana dibuka · ${next?`Sasaran seterusnya: ${next.title}`:'Pembaca cemerlang!'}</p>`;
+ const sub=student(bintangFor)||student(state.selected)||state.students[0];if(!sub){renderHome();return}bintangFor=sub.id;const bs=statusBintang(sub);
+ MAIN.innerHTML=header('Bintang NILAM','Pengiktirafan automatik mengikut jumlah bahan bacaan setiap murid.')
+ +`<div class="pickerwrap"><label class="pickerlabel" for="lencanaPick">Pilih murid</label><select class="picker" id="lencanaPick">${state.students.map(s=>`<option value="${s.id}"${bintangFor===s.id?' selected':''}>${esc(s.name)} · ${esc(s.kelas)}</option>`).join('')}</select></div>
+ <section class="badgehero">${icon('i-award')}<h2 aria-label="${bs.bintang} daripada 5 bintang">${teksBintang(bs.bintang)}</h2><p>${esc(sub.name)} · ${bs.jumlah} bahan bacaan · ${bs.bintang?`${bs.bintang} bintang`:'belum ada bintang'}</p><div class="bar"><i style="width:${bs.pct}%"></i></div>${bs.bintang?'<button class="btn continue" data-action="certificate">Lihat sijil</button>':''}</section>
+ <div class="badgegrid">${tahapBintangHTML(bs.bintang)}</div>
+ <p class="route-note">${bs.next?`${bs.baki} rekod lagi untuk mencapai ${bs.bintang+1} bintang.`:'Tahap tertinggi 5 bintang telah dicapai.'}</p>`;
  MAIN.scrollTop=0}
 function renderLaporan(){
  route='Laporan';activate('Profil');
@@ -458,7 +460,7 @@ $('recordForm').addEventListener('submit',e=>{e.preventDefault();const f=new For
 let _searchTimer;document.addEventListener('input',e=>{clearTimeout(_searchTimer);_searchTimer=setTimeout(()=>{if(e.target.id==='bookSearch')$('bookList').innerHTML=bookItems(e.target.value);else if(e.target.id==='stuSearch'){q=e.target.value;renderStuList()}},150)});
 document.addEventListener('change',e=>{const t=e.target;
  if(t.id==='classPick'){filter=t.value;renderStuList()}
- else if(t.id==='lencanaPick'){lencanaFor=t.value;renderLencana()}
+ else if(t.id==='lencanaPick'){bintangFor=t.value;renderLencana()}
  else if(t.id==='stu'){const s=student(t.value);if(s)$('recordTitle').textContent=`Rekod · ${first(s.name)}`}
  else if(t.dataset&&t.dataset.pref){state.prefs[t.dataset.pref]=t.checked;save();toast('Tetapan disimpan')}});
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.classList.contains('detail-close'))return;
@@ -473,7 +475,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(b.dataset.pulang!==undefined){returnBook(Number(b.dataset.pulang));return}
  if(b.dataset.tempah!==undefined){const i=Number(b.dataset.tempah),k=bk(i);if(!state.reservations[k])state.reservations[k]=[];const t=target();if(!state.reservations[k].includes(t.id)){state.reservations[k].push(t.id);save();toast(`${BOOKS[i].title} ditempah untuk ${first(t.name)}`)}else{toast('Sudah ditempah')}return}
  if(b.dataset.record!==undefined){const[x,i]=b.dataset.record.split(':');recordDetail(x,Number(i));return}
- if(b.dataset.badgecert!==undefined){const sub=lencanaFor==='all'?aggregate():(student(lencanaFor)||aggregate());const ss=getSchoolSettings();const certWin=window.open('','_blank');if(certWin){certWin.document.write(buildCertificate(sub,ss,b.dataset.badgecert));certWin.document.close()}return}
+
  const a=b.dataset.action;
  if(a==='quick-add'){openRecord(b,$('quickStu').value);return}
  if(a==='notifications'){detail('Pemberitahuan',`<p>${totals().records} rekod bacaan direkodkan daripada ${totals().students} murid. Tiada tugasan tertunggak.</p>`);return}
@@ -484,7 +486,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(a==='export-books-csv'){exportBooksCSV();return}
  if(a==='backup-data'){backupData();return}
  if(a==='classes'){detail('Senarai kelas',classes().map(c=>`<p><strong>${esc(c)}</strong> — ${state.students.filter(s=>s.kelas===c).length} murid</p>`).join(''));return}
- if(a==='certificate'){const sub=lencanaFor==='all'?aggregate():(student(lencanaFor)||aggregate());const ss=getSchoolSettings();const certWin=window.open('','_blank');if(certWin){certWin.document.write(buildCertificate(sub,ss));certWin.document.close()}return}
+ if(a==='certificate'){const sub=student(bintangFor)||student(state.selected)||state.students[0];if(!sub||bintangNilam(sub.records.length)<1){toast('Belum mencapai 1 Bintang NILAM');return}const ss=getSchoolSettings();const certWin=window.open('','_blank');if(certWin){certWin.document.write(buildCertificate(sub,ss));certWin.document.close()}return}
  if(a==='print'){window.print();$('detailDialog').close();return}
  if(a==='reset'){detail('Tetapkan semula demo','<p>Semua perubahan demonstrasi pada peranti ini akan dibuang.</p>','Tetapkan semula','confirm-reset');return}
  if(a==='confirm-reset'){localStorage.removeItem(KEY);state=seed();$('detailDialog').close();renderHome();toast('Demo ditetapkan semula');return}
@@ -533,13 +535,13 @@ $('borrowForm').addEventListener('submit',e=>{e.preventDefault();
  $('borrowDialog').close();if(route==='Buku')renderBooks($('bookSearch')?.value||'');else renderHome();
  toast(`${b.title} dipinjam oleh ${first(s.name)}`)});
 /* --- Sijil Pencapaian NILAM --- */
-function buildCertificate(sub,ss,badge){
+function buildCertificate(sub,ss){
  const nama=sub.name||'Murid';
  const sekolah=ss.namaSekolah||'Pusat Sumber Sekolah';
  const logo=ss.logoUrl?`<img src="${esc(ss.logoUrl)}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin-bottom:8px" alt="Logo sekolah">`:'';
  const now=new Date();
  const tarikh=`${now.getDate()} ${MON[now.getMonth()]} ${now.getFullYear()}`;
- const badgeLine=badge?`<p style="font-size:18px;margin:8px 0 0;font-weight:700">🏅 Lencana: ${esc(badge)}</p>`:'';
+ const bs=statusBintang(sub);
  return `<!doctype html><html lang="ms"><head><meta charset="utf-8"><title>Sijil Pencapaian NILAM</title><style>
  @page{size:A4 landscape;margin:0}
  @media print{.no-print{display:none!important}}
@@ -565,8 +567,8 @@ function buildCertificate(sub,ss,badge){
   <h2>${esc(sekolah)}</h2>
   <p style="font-size:16px;margin:0 0 8px">Dengan ini disahkan bahawa</p>
   <div class="name">${esc(nama)}</div>
-  <p class="achieve">telah menyelesaikan <strong>${sub.books}</strong> bahan bacaan dengan jumlah <strong>${sub.pages}</strong> halaman melalui program NILAM Pusat Sumber Sekolah.</p>
-  ${badgeLine}
+  <p class="achieve">telah menyelesaikan <strong>${bs.jumlah}</strong> bahan bacaan dengan jumlah <strong>${sub.pages}</strong> halaman melalui program NILAM Pusat Sumber Sekolah.</p>
+  <p style="font-size:20px;margin:8px 0 0;font-weight:800">Pengiktirafan: ${bs.bintang} Bintang NILAM · ${teksBintang(bs.bintang)}</p>
   <p class="date">Dikeluarkan pada: ${tarikh}</p>
   <div class="sig">
    <div><div class="line">Guru PSS</div></div>
@@ -575,7 +577,7 @@ function buildCertificate(sub,ss,badge){
  </div>
  </body></html>`;
 }
-window.__nilamPSS={getState:()=>JSON.parse(JSON.stringify(state)),go,renderMurid,openRecord,reset:()=>{localStorage.removeItem(KEY);state=seed();renderHome()}};
+window.__nilamPSS={getState:()=>JSON.parse(JSON.stringify(state)),go,renderMurid,openRecord,bintangNilam,statusBintang,reset:()=>{localStorage.removeItem(KEY);state=seed();renderHome()}};
 /* --- Book form dialog --- */
 function openBookForm(idx){
  const dlg=$('bookFormDialog');if(!dlg)return;
